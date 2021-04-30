@@ -8,7 +8,7 @@
 #define ENCOD_MAT_SIZE 91
 #define SCORE_MAT_SIZE 576
 
-namespace gpu_bsw{
+namespace kernel{
 __device__ short
 warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB);
 
@@ -39,14 +39,9 @@ traceBack(short current_i, short current_j, short* seqA_align_begin,
           short* I_j, unsigned lengthSeqB, unsigned lengthSeqA, unsigned int* diagOffset);
 
 __global__ void
-sequence_dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                    unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap);
-
-__global__ void
-sequence_dna_reverse(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                    unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap);
+dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
+                unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap);
 
 __global__ void
 sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,

@@ -4,7 +4,7 @@ namespace ADEPT{
 	enum SEQ_TYPE{DNA, AA};
         
 	struct aln_results{
-		short ref_begin, ref_end, query_begin, query_end;
+		short ref_begin, ref_end, query_begin, query_end, top_scores;
 		aln_results();
 	};
 
@@ -20,18 +20,17 @@ namespace ADEPT{
 			adept_stream curr_stream;
 
 			unsigned max_ref_size, max_que_size;
-        		char *ref_cstr, *que_cstr;
-        		unsigned total_alignments;
-        		unsigned *offset_ref, *offset_que;
-        		unsigned total_length_ref, total_length_que;
+			char *ref_cstr, *que_cstr;
+			unsigned total_alignments;
+			unsigned *offset_ref, *offset_que;
+			unsigned total_length_ref, total_length_que;
 			short *ref_start_gpu, *ref_end_gpu, *query_start_gpu, *query_end_gpu, *scores_gpu;
-        		unsigned* offset_ref_gpu, *offset_query_gpu;
-        		char *ref_cstr_d, *que_cstr_d;
+			unsigned* offset_ref_gpu, *offset_query_gpu;
+			char *ref_cstr_d, *que_cstr_d;
 
 			void allocate_gpu_mem(unsigned max_alignments);
 			void dealloc_gpu_mem();
 			void initialize_alignments();
-			void free_alignments();
 			void mem_copy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, 
 					unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, 
 					unsigned totalLengthA, unsigned totalLengthB, int sequences_per_stream);
@@ -44,5 +43,6 @@ namespace ADEPT{
 			aln_results get_results();
 			bool kernel_done();
 			void gpu_cleanup();
+			void free_results();
 	};
 }
