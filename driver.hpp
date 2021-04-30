@@ -2,13 +2,13 @@ namespace ADEPT{
 	enum ALG_TYPE{SW, NW};
 	enum CIGAR{NO, YES};
 	enum SEQ_TYPE{DNA, AA};
-
+        
 	struct aln_results{
 		short ref_begin, ref_end, query_begin, query_end;
 		aln_results();
 	};
 
-
+	struct adept_stream;
 	class driver{
 		private:
 			short match_score, mismatch_score, gap_start, gap_extend;
@@ -17,12 +17,13 @@ namespace ADEPT{
 			SEQ_TYPE sequence;
 			CIGAR cigar_avail;
 			aln_results *results;
+			adept_stream curr_stream;
 
 			unsigned max_ref_size, max_que_size;
         		char *ref_cstr, *que_cstr;
         		unsigned total_alignments;
         		unsigned *offset_ref, *offset_que;
-        		unsigned total_length_ref, total_length_que, half_length_ref, half_length_que;
+        		unsigned total_length_ref, total_length_que;
 			short *ref_start_gpu, *ref_end_gpu, *query_start_gpu, *query_end_gpu, *scores_gpu;
         		unsigned* offset_ref_gpu, *offset_query_gpu;
         		char *ref_cstr_d, *que_cstr_d;
