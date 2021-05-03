@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
   //ADEPT::aln_results results_test;
   ADEPT::driver sw_driver;
   std::array<short, 4> scores = {3,-3,-6,-1};
-  sw_driver.initialize(scores, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 0, 
+  sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 0, 
 				      ref_sequences, que_sequences);
   
   sw_driver.kernel_launch();
