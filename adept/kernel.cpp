@@ -1,4 +1,4 @@
-#include <kernel.hpp>
+#include "kernel.hpp"
 
 __inline__ __device__ short
 kernel::warpReduceMax_with_index_reverse(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB)

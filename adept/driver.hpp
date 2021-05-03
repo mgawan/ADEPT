@@ -18,8 +18,8 @@ namespace ADEPT{
 			ALG_TYPE algorithm;
 			SEQ_TYPE sequence;
 			CIGAR cigar_avail;
-			aln_results *results;
-			adept_stream curr_stream;
+			aln_results results;
+			adept_stream *curr_stream = nullptr;
 
 			unsigned max_ref_size, max_que_size;
 			char *ref_cstr, *que_cstr;

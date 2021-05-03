@@ -29,8 +29,9 @@ unsigned getMaxLength (std::vector<std::string> v)
   return maxLength;
 }
 
-struct adept_stream{
+struct ADEPT::adept_stream{
 	cudaStream_t stream;
+	cudaEvent_t event;
 };
 
 void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs){
@@ -38,10 +39,10 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
 	}
-
+	curr_stream = new adept_stream();
 	gpu_id = _gpu_id;
     	cudaErrchk(cudaSetDevice(gpu_id));
-    	cudaErrchk(cudaStreamCreate(&(curr_stream.stream)));
+    	cudaErrchk(cudaStreamCreate(&(curr_stream->stream)));
 
     	total_alignments = ref_seqs.size();
     	max_ref_size = getMaxLength(ref_seqs);
@@ -53,12 +54,12 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	cudaErrchk(cudaMallocHost(&ref_cstr, sizeof(char) * max_ref_size * total_alignments));
 	cudaErrchk(cudaMallocHost(&que_cstr, sizeof(char) * max_que_size * total_alignments));
 	// host pinned memory for results
-	initialize_alignments(total_alignments);
+	initialize_alignments();
 	//device memory for sequences
 	cudaErrchk(cudaMalloc(&ref_cstr_d, sizeof(char) * max_ref_size * total_alignments));
 	cudaErrchk(cudaMalloc(&que_cstr_d,  sizeof(char)* max_que_size * total_alignments));
 	//device memory for offsets and results
-	allocate_gpu_mem(total_alignments);
+	allocate_gpu_mem();
 
 	//preparing offsets 
 	unsigned running_sum = 0;
