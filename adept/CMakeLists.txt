@@ -1,17 +1,18 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(adept LANGUAGES CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+project(adept LANGUAGES CUDA)
+set(CMAKE_CUDA_STANDARD 11)
+#set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-set(SOURCE_FILES "*.cpp")
-set(HEADER_FILES "*.hpp")
+file(GLOB SOURCE_FILES *.cpp)
+set(HEADER_FILES "*kernel.hpp driver.hpp")
+enable_language(CUDA)
+#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler")
+set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE CUDA LINKER_LANGUAGE CUDA)
 
-set_source_files_properties($(SOURCE_FILES) PROPOERTIES LANGUAGE CUDA LINKER_LANGUAGE CUDA)
-
-add_library(adept_obj OBJECT $(SOURCE_FILES))
-add_library(adept_lib_shared SHARED $<TARGET_OBJECTS:objlib>)
+add_library(adept_obj OBJECT ${SOURCE_FILES})
+add_library(adept_lib_shared SHARED $<TARGET_OBJECTS:adept_obj>)
 install(TARGETS adept_lib_shared LIBRARY DESTINATION lib)
 
 

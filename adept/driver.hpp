@@ -1,3 +1,5 @@
+#include <vector>
+#include <string>
 namespace ADEPT{
 	enum ALG_TYPE{SW, NW};
 	enum CIGAR{NO, YES};
@@ -30,7 +32,7 @@ namespace ADEPT{
 
 			void allocate_gpu_mem(unsigned max_alignments);
 			void dealloc_gpu_mem();
-			void initialize_alignments();
+			void initialize_alignments(int total_alignments);
 			void mem_copy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, 
 					unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, 
 					unsigned totalLengthA, unsigned totalLengthB, int sequences_per_stream);
@@ -39,6 +41,7 @@ namespace ADEPT{
 			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, 
 				      std::vector<std::string> ref_seqs, std::vector<std::string>query_seqs);// each adept_dna object will have a unique cuda stream
 			void kernel_launch();
+			mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
 			void mem_cpy_dth();
 			aln_results get_results();
 			bool kernel_done();

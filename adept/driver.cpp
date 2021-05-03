@@ -79,7 +79,7 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	unsigned offsetSumA = 0;
 	unsigned offsetSumB = 0;
 
- 	for(int i = 0; i < ref.size(); i++){
+ 	for(int i = 0; i < ref_seqs.size(); i++){
 		char* seqptrA = ref_cstr + offsetSumA;  
 		memcpy(seqptrA, ref_seqs[i].c_str(), ref_seqs[i].size());
 		char* seqptrB = que_cstr + offsetSumB;
@@ -98,7 +98,7 @@ void driver::kernel_launch(){
 	size_t   ShmemBytes = totShmem + alignmentPad;
 	if(ShmemBytes > 48000)
         cudaFuncSetAttribute(kernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
-	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, start_gap, extend_gap);
+	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend);
 }
 
 void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB){
