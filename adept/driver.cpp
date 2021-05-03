@@ -169,3 +169,4 @@ void driver::allocate_gpu_mem(){
     cudaErrchk(cudaMalloc(&query_start_gpu, (total_alignments) * sizeof(short)));
     cudaErrchk(cudaMalloc(&scores_gpu, (total_alignments) * sizeof(short)));
 }
+

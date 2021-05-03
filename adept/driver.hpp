@@ -18,7 +18,6 @@ namespace ADEPT{
 			ALG_TYPE algorithm;
 			SEQ_TYPE sequence;
 			CIGAR cigar_avail;
-			aln_results results;
 			adept_stream *curr_stream = nullptr;
 
 			unsigned max_ref_size, max_que_size;
@@ -49,5 +48,6 @@ namespace ADEPT{
 			bool kernel_done();
 			void cleanup();
 			void free_results();
+			aln_results results;
 	};
 }
