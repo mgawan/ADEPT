@@ -6,8 +6,8 @@ namespace ADEPT{
 	enum SEQ_TYPE{DNA, AA};
         
 	struct aln_results{
-		short ref_begin, ref_end, query_begin, query_end, top_scores;
-		aln_results();
+		short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
+		//aln_results();
 	};
 
 	struct adept_stream;
@@ -36,14 +36,14 @@ namespace ADEPT{
 			void mem_copy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, 
 					unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, 
 					unsigned totalLengthA, unsigned totalLengthB, int sequences_per_stream);
-			mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu);
-			mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend);
+			void mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu);
+			void mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend);
 
 		public:
 			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, 
 				      std::vector<std::string> ref_seqs, std::vector<std::string>query_seqs);// each adept_dna object will have a unique cuda stream
 			void kernel_launch();
-			mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
+			void mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
 			void mem_cpy_dth();
 			aln_results get_results();
 			bool kernel_done();
