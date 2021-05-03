@@ -30,12 +30,14 @@ namespace ADEPT{
 			unsigned* offset_ref_gpu, *offset_query_gpu;
 			char *ref_cstr_d, *que_cstr_d;
 
-			void allocate_gpu_mem(unsigned max_alignments);
+			void allocate_gpu_mem();
 			void dealloc_gpu_mem();
-			void initialize_alignments(int total_alignments);
+			void initialize_alignments();
 			void mem_copy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, 
 					unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, 
 					unsigned totalLengthA, unsigned totalLengthB, int sequences_per_stream);
+			mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu);
+			mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend);
 
 		public:
 			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, 
@@ -45,7 +47,7 @@ namespace ADEPT{
 			void mem_cpy_dth();
 			aln_results get_results();
 			bool kernel_done();
-			void gpu_cleanup();
+			void cleanup();
 			void free_results();
 	};
 }

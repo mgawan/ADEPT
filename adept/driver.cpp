@@ -103,60 +103,60 @@ void driver::kernel_launch(){
 
 void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB){
 	cudaErrchk(cudaMemcpyAsync(offset_ref_gpu, offsetA_h, (total_alignments) * sizeof(int), cudaMemcpyHostToDevice));
-    	cudaErrchk(cudaMemcpyAsync(offset_query_gpu, offsetB_h, (total_alignments) * sizeof(int), cudaMemcpyHostToDevice));
-    	cudaErrchk(cudaMemcpyAsync(strA_d, strA, totalLengthA * sizeof(char), cudaMemcpyHostToDevice));
-    	cudaErrchk(cudaMemcpyAsync(strB_d, strB, totalLengthB * sizeof(char), cudaMemcpyHostToDevice));
+    cudaErrchk(cudaMemcpyAsync(offset_query_gpu, offsetB_h, (total_alignments) * sizeof(int), cudaMemcpyHostToDevice));
+    cudaErrchk(cudaMemcpyAsync(strA_d, strA, totalLengthA * sizeof(char), cudaMemcpyHostToDevice));
+    cudaErrchk(cudaMemcpyAsync(strB_d, strB, totalLengthB * sizeof(char), cudaMemcpyHostToDevice));
 }
 
 void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu){
-    	cudaErrchk(cudaMemcpyAsync(alAbeg, ref_start_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
+    cudaErrchk(cudaMemcpyAsync(alAbeg, ref_start_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
 	cudaErrchk(cudaMemcpyAsync(alBbeg, query_start_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
-    	cudaErrchk(cudaMemcpyAsync(top_scores_cpu, scores_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
+    cudaErrchk(cudaMemcpyAsync(top_scores_cpu, scores_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
 }
 
 void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend){
-    	cudaErrchk(cudaMemcpyAsync(alAend, ref_end_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
-    	cudaErrchk(cudaMemcpyAsync(alBend, query_end_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
+    cudaErrchk(cudaMemcpyAsync(alAend, ref_end_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
+    cudaErrchk(cudaMemcpyAsync(alBend, query_end_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost));
 }
 
 void driver::mem_cpy_dth(){
-	mem_copies_dth_mid(ref_end_gpu, ref_end , query_end_gpu, query_end);
-	mem_copies_dth(ref_start_gpu, ref_begin, query_start_gpu, query_begin, scores_gpu , top_scores);
+	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
+	mem_copies_dth(ref_start_gpu, results.ref_begin, query_start_gpu, results.query_begin, scores_gpu , results.top_scores);
 }
 
-void driver::initialize_alignments(int max_alignments){
-    	cudaErrchk(cudaMallocHost(&(ref_begin), sizeof(short)*max_alignments));
-    	cudaErrchk(cudaMallocHost(&(ref_end), sizeof(short)*max_alignments));
-    	cudaErrchk(cudaMallocHost(&(query_begin), sizeof(short)*max_alignments));
-    	cudaErrchk(cudaMallocHost(&(query_end), sizeof(short)*max_alignments));
-    	cudaErrchk(cudaMallocHost(&(top_scores), sizeof(short)*max_alignments));
+void driver::initialize_alignments(){
+	cudaErrchk(cudaMallocHost(&(results.ref_begin), sizeof(short)*total_alignments));
+	cudaErrchk(cudaMallocHost(&(results.ref_end), sizeof(short)*total_alignments));
+	cudaErrchk(cudaMallocHost(&(results.query_begin), sizeof(short)*total_alignments));
+	cudaErrchk(cudaMallocHost(&(results.query_end), sizeof(short)*total_alignments));
+	cudaErrchk(cudaMallocHost(&(results.top_scores), sizeof(short)*total_alignments));
 }
 
 void driver::dealloc_gpu_mem(){
 	cudaErrchk(cudaFree(offset_ref_gpu));
-    	cudaErrchk(cudaFree(offset_query_gpu));
-    	cudaErrchk(cudaFree(ref_start_gpu));
-    	cudaErrchk(cudaFree(ref_end_gpu));
-    	cudaErrchk(cudaFree(query_start_gpu));
-    	cudaErrchk(cudaFree(query_end_gpu));
+	cudaErrchk(cudaFree(offset_query_gpu));
+	cudaErrchk(cudaFree(ref_start_gpu));
+	cudaErrchk(cudaFree(ref_end_gpu));
+	cudaErrchk(cudaFree(query_start_gpu));
+	cudaErrchk(cudaFree(query_end_gpu));
 	cudaErrchk(cudaFree(ref_cstr_d));
-    	cudaErrchk(cudaFree(que_cstr_d));
+	cudaErrchk(cudaFree(que_cstr_d));
 }
 
 void driver::cleanup(){
-    	cudaErrchk(cudaFreeHost(offset_ref));
-    	cudaErrchk(cudaFreeHost(offset_que));
-    	cudaErrchk(cudaFreeHost(ref_cstr));
-    	cudaErrchk(cudaFreeHost(que_cstr));
-    	dealloc_gpu_mem();
+	cudaErrchk(cudaFreeHost(offset_ref));
+	cudaErrchk(cudaFreeHost(offset_que));
+	cudaErrchk(cudaFreeHost(ref_cstr));
+	cudaErrchk(cudaFreeHost(que_cstr));
+	dealloc_gpu_mem();
 }
 
 void driver::free_results(){
-    cudaErrchk(cudaFreeHost(ref_begin));
-    cudaErrchk(cudaFreeHost(ref_end));
-    cudaErrchk(cudaFreeHost(query_begin));
-    cudaErrchk(cudaFreeHost(query_end));
-    cudaErrchk(cudaFreeHost(top_scores));
+    cudaErrchk(cudaFreeHost(results.ref_begin));
+    cudaErrchk(cudaFreeHost(results.ref_end));
+    cudaErrchk(cudaFreeHost(results.query_begin));
+    cudaErrchk(cudaFreeHost(results.query_end));
+    cudaErrchk(cudaFreeHost(results.top_scores));
 }
 
 void driver::allocate_gpu_mem(){
