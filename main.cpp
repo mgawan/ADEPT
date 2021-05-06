@@ -56,10 +56,12 @@ int main(int argc, char* argv[]){
   ADEPT::driver sw_driver;
   std::array<short, 4> scores = {3,-3,-6,-1};
   sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 0);
-  
+
   sw_driver.kernel_launch(ref_sequences, que_sequences);
+
   sw_driver.mem_cpy_dth();
   sw_driver.cleanup();
+
   auto results = sw_driver.get_alignments();
 
   ofstream results_file(out_file);
@@ -68,7 +70,6 @@ int main(int argc, char* argv[]){
     "\t"<<results.query_begin[k]<<"\t"<<results.query_end[k] - 1<<endl;
   }
 
-  cout << "max batch:"<< sw_driver.get_batch_size(0, 300, 1000)<<"\n";
   sw_driver.free_results();
 
   results_file.flush();
