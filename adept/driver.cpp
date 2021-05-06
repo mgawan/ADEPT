@@ -31,7 +31,7 @@ struct ADEPT::adept_stream{
 	cudaEvent_t event;
 };
 
-void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs){
+void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
@@ -41,9 +41,9 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	cudaErrchk(cudaSetDevice(gpu_id));
 	cudaErrchk(cudaStreamCreate(&(curr_stream->stream)));
 
-	total_alignments = ref_seqs.size();
-	max_ref_size = getMaxLength(ref_seqs);
-	max_que_size = getMaxLength(query_seqs);
+	total_alignments = batch_size;
+	max_ref_size = _max_ref_size;
+	max_que_size = _max_query_size;
 	//host pinned memory for offsets
 	cudaErrchk(cudaMallocHost(&offset_ref, sizeof(int) * total_alignments));
 	cudaErrchk(cudaMallocHost(&offset_que, sizeof(int) * total_alignments));
@@ -58,6 +58,11 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	//device memory for offsets and results
 	allocate_gpu_mem();
 
+}
+
+void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs){
+	if(ref_seqs.size() != total_alignments)
+		std::cerr << "INITIALIZATION ERROR: driver was initialized with a batch size that does not match to the vector passed to kernel\n";
 	//preparing offsets 
 	unsigned running_sum = 0;
 	for(int i = 0; i < total_alignments; i++){
@@ -85,11 +90,9 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 		offsetSumA += ref_seqs[i].size();
 		offsetSumB += query_seqs[i].size();
     }
-    	//move data asynchronously to GPU
-    	mem_cpy_htd(offset_ref_gpu, offset_query_gpu, offset_ref, offset_que, ref_cstr, ref_cstr_d, que_cstr, que_cstr_d, total_length_ref,  total_length_que); // TODO: add streams
-}
+    //move data asynchronously to GPU
+    mem_cpy_htd(offset_ref_gpu, offset_query_gpu, offset_ref, offset_que, ref_cstr, ref_cstr_d, que_cstr, que_cstr_d, total_length_ref,  total_length_que); // TODO: add streams
 
-void driver::kernel_launch(){
 	unsigned minSize = (max_que_size < max_ref_size) ? max_que_size : max_ref_size;
 	unsigned totShmem = 3 * (minSize + 1) * sizeof(short);
 	unsigned alignmentPad = 4 + (4 - totShmem % 4);
@@ -188,5 +191,18 @@ void driver::allocate_gpu_mem(){
     cudaErrchk(cudaMalloc(&query_end_gpu, (total_alignments) * sizeof(short)));
     cudaErrchk(cudaMalloc(&query_start_gpu, (total_alignments) * sizeof(short)));
     cudaErrchk(cudaMalloc(&scores_gpu, (total_alignments) * sizeof(short)));
+}
+
+size_t driver::get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem){
+	cudaDeviceProp prop;
+	cudaErrchk(cudaGetDeviceProperties(&prop, gpu_id));
+	size_t gpu_mem_avail = (double)prop.totalGlobalMem * (double)per_gpu_mem/100;
+	size_t gpu_mem_per_align = max_q_size + max_r_size + 2 * sizeof(int) + 5 * sizeof(short);
+	size_t max_concurr_aln = floor(((double)gpu_mem_avail)/gpu_mem_per_align);
+
+	if (max_concurr_aln > 50000)
+		return 50000;
+	else
+		return max_concurr_aln;
 }
 

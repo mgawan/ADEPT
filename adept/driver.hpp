@@ -33,22 +33,19 @@ namespace ADEPT{
 			void allocate_gpu_mem();
 			void dealloc_gpu_mem();
 			void initialize_alignments();
-			void mem_copy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, 
-					unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, 
-					unsigned totalLengthA, unsigned totalLengthB, int sequences_per_stream);
+			void mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
 			void mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu);
 			void mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend);
 			int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
 
 		public:
-			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _gpu_id, 
-				      std::vector<std::string> ref_seqs, std::vector<std::string>query_seqs);// each adept_dna object will have a unique cuda stream
-			void kernel_launch();
-			void mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
+			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id);// each adept_dna object will have a unique cuda stream
+			void kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs);
 			void mem_cpy_dth();
 			aln_results get_alignments();
 			bool kernel_done();
 			void cleanup();
 			void free_results();
+			size_t get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 	};
 }
