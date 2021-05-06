@@ -141,11 +141,19 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
   unsigned maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
   unsigned minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
 
-  memset(is_valid, 0, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 0;
+  }
+
   is_valid += minSize;
-  memset(is_valid, 1, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 1;
+  }
+
   is_valid += minSize;
-  memset(is_valid, 0, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 0;
+  }
 
   char myColumnChar;
   // the shorter of the two strings is stored in thread registers

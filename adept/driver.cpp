@@ -101,6 +101,7 @@ void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::s
         cudaFuncSetAttribute(kernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
 	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
 	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
+	cudaStreamSynchronize(curr_stream->stream);
 	int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
 	kernel::dna_kernel<<<total_alignments, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
 }
@@ -139,7 +140,6 @@ void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_
 }
 
 void driver::mem_cpy_dth(){
-	//mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
 	mem_copies_dth(ref_start_gpu, results.ref_begin, query_start_gpu, results.query_begin, scores_gpu , results.top_scores);
 }
 
