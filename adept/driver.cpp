@@ -6,10 +6,8 @@
     gpuAssert((ans), __FILE__, __LINE__);                                            \
 }
 inline void
-gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
-{
-    if(code != cudaSuccess)
-    {
+gpuAssert(cudaError_t code, const char* file, int line, bool abort = true){
+    if(code != cudaSuccess){
         fprintf(stderr, "GPUassert: %s %s %d cpu:%d\n", cudaGetErrorString(code), file, line);
         if(abort)
             exit(code);
@@ -18,8 +16,7 @@ gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
 
 using namespace ADEPT;
 
-unsigned getMaxLength (std::vector<std::string> v)
-{
+unsigned getMaxLength (std::vector<std::string> v){
   unsigned maxLength = 0;
   for(auto str : v){
     if(maxLength < str.length()){
@@ -41,12 +38,12 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	}
 	curr_stream = new adept_stream();
 	gpu_id = _gpu_id;
-    	cudaErrchk(cudaSetDevice(gpu_id));
-    	cudaErrchk(cudaStreamCreate(&(curr_stream->stream)));
+	cudaErrchk(cudaSetDevice(gpu_id));
+	cudaErrchk(cudaStreamCreate(&(curr_stream->stream)));
 
-    	total_alignments = ref_seqs.size();
-    	max_ref_size = getMaxLength(ref_seqs);
-    	max_que_size = getMaxLength(query_seqs);
+	total_alignments = ref_seqs.size();
+	max_ref_size = getMaxLength(ref_seqs);
+	max_que_size = getMaxLength(query_seqs);
 	//host pinned memory for offsets
 	cudaErrchk(cudaMallocHost(&offset_ref, sizeof(int) * total_alignments));
 	cudaErrchk(cudaMallocHost(&offset_que, sizeof(int) * total_alignments));
@@ -99,7 +96,26 @@ void driver::kernel_launch(){
 	size_t   ShmemBytes = totShmem + alignmentPad;
 	if(ShmemBytes > 48000)
         cudaFuncSetAttribute(kernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
-	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend);
+	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
+	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
+	cudaDeviceSynchronize();
+	int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
+	kernel::dna_kernel<<<total_alignments, new_length, ShmemBytes>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
+}
+int driver::get_new_min_length(short* alAend, short* alBend, int blocksLaunched){
+        int newMin = 1000;
+        int maxA = 0;
+        int maxB = 0;
+        for(int i = 0; i < blocksLaunched; i++){
+          if(alBend[i] > maxB ){
+              maxB = alBend[i];
+          }
+          if(alAend[i] > maxA){
+            maxA = alAend[i];
+          }
+        }
+        newMin = (maxB > maxA)? maxA : maxB;
+        return newMin;
 }
 
 void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB){
@@ -121,7 +137,7 @@ void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_
 }
 
 void driver::mem_cpy_dth(){
-	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
+	//mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
 	mem_copies_dth(ref_start_gpu, results.ref_begin, query_start_gpu, results.query_begin, scores_gpu , results.top_scores);
 }
 
@@ -131,6 +147,10 @@ void driver::initialize_alignments(){
 	cudaErrchk(cudaMallocHost(&(results.query_begin), sizeof(short)*total_alignments));
 	cudaErrchk(cudaMallocHost(&(results.query_end), sizeof(short)*total_alignments));
 	cudaErrchk(cudaMallocHost(&(results.top_scores), sizeof(short)*total_alignments));
+}
+
+aln_results driver::get_alignments(){
+	return results;
 }
 
 void driver::dealloc_gpu_mem(){

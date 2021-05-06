@@ -8,8 +8,7 @@
 
 using namespace std;
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
   string refFile = argv[1];
   string queFile = argv[2];
   string out_file = argv[3];
@@ -22,49 +21,38 @@ int main(int argc, char* argv[])
 
   int totSizeA = 0, totSizeB = 0;
 
-  if(ref_file.is_open())
-  {
-      while(getline(ref_file, myInLine))
-      {
-          if(myInLine[0] == '>'){
-            continue;
-          }else{
-            string seq = myInLine;
-            ref_sequences.push_back(seq);
-            totSizeA += seq.size();
-            if(seq.size() > largestA)
-            {
-                largestA = seq.size();
-            }
-
-          }
-
+  if(ref_file.is_open()){
+    while(getline(ref_file, myInLine)){
+      if(myInLine[0] == '>'){
+        continue;
+      }else{
+        string seq = myInLine;
+        ref_sequences.push_back(seq);
+        totSizeA += seq.size();
+        if(seq.size() > largestA){
+            largestA = seq.size();
+        }
       }
-      ref_file.close();
+    }
+    ref_file.close();
   }
 
-  if(quer_file.is_open())
-  {
-      while(getline(quer_file, myInLine))
-      {
-          if(myInLine[0] == '>'){
-            continue;
-          }else{
-            string seq = myInLine;
-            que_sequences.push_back(seq);
-            totSizeB += seq.size();
-            if(seq.size() > largestB)
-            {
-                largestB = seq.size();
-            }
-
-          }
-
+  if(quer_file.is_open()){
+    while(getline(quer_file, myInLine)){
+      if(myInLine[0] == '>'){
+        continue;
+      }else{
+        string seq = myInLine;
+        que_sequences.push_back(seq);
+        totSizeB += seq.size();
+        if(seq.size() > largestB){
+            largestB = seq.size();
+        }
       }
-      quer_file.close();
+    }
+    quer_file.close();
   }
 
-  //ADEPT::aln_results results_test;
   ADEPT::driver sw_driver;
   std::array<short, 4> scores = {3,-3,-6,-1};
   sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 0, 
@@ -73,11 +61,12 @@ int main(int argc, char* argv[])
   sw_driver.kernel_launch();
   sw_driver.mem_cpy_dth();
   sw_driver.cleanup();
+  auto results = sw_driver.get_alignments();
 
   ofstream results_file(out_file);
   for(int k = 0; k < ref_sequences.size(); k++){
-    results_file<<sw_driver.results.top_scores[k]<<"\t"<<sw_driver.results.ref_begin[k]<<"\t"<<sw_driver.results.ref_end[k]<<
-    "\t"<<sw_driver.results.query_begin[k]<<"\t"<<sw_driver.results.query_end[k]<<endl;
+    results_file<<results.top_scores[k]<<"\t"<<results.ref_begin[k]<<"\t"<<results.ref_end[k] - 1<<
+    "\t"<<results.query_begin[k]<<"\t"<<results.query_end[k] - 1<<endl;
   }
 
   sw_driver.free_results();

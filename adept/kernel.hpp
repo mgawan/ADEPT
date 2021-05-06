@@ -10,19 +10,13 @@
 
 namespace kernel{
 __device__ short
-warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB);
-
-__device__ short
-warpReduceMax_with_index_reverse(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB);
+warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse);
 
 __device__ short
 warpReduceMax(short val, unsigned lengthSeqB);
 
 __device__ short
-blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB);
-
-__device__ short
-blockShuffleReduce_with_index_reverse(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB);
+blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse);
 
 __device__ short
 blockShuffleReduce(short val, unsigned lengthSeqB);
@@ -41,7 +35,7 @@ traceBack(short current_i, short current_j, short* seqA_align_begin,
 __global__ void
 dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                 unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap);
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap, bool reverse);
 
 __global__ void
 sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
