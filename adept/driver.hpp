@@ -44,6 +44,9 @@ namespace ADEPT{
 			void mem_cpy_dth();
 			aln_results get_alignments();
 			bool kernel_done();
+			bool dth_done();
+			void kernel_synch();
+			void dth_synch();
 			void cleanup();
 			void free_results();
 			size_t get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);

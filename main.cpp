@@ -58,8 +58,9 @@ int main(int argc, char* argv[]){
   sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 0);
 
   sw_driver.kernel_launch(ref_sequences, que_sequences);
-
   sw_driver.mem_cpy_dth();
+  sw_driver.dth_synch();
+
   sw_driver.cleanup();
 
   auto results = sw_driver.get_alignments();

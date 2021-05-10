@@ -28,18 +28,25 @@ unsigned getMaxLength (std::vector<std::string> v){
 
 struct ADEPT::adept_stream{
 	cudaStream_t stream;
-	cudaEvent_t event;
+	cudaEvent_t kernel_event;
+	cudaEvent_t data_event;
+	
+	adept_stream(int gpu){
+		cudaErrchk(cudaSetDevice(gpu));
+		cudaErrchk(cudaStreamCreate(&stream));
+		cudaErrchk(cudaEventCreateWithFlags(&kernel_event, cudaEventBlockingSync));
+		cudaErrchk(cudaEventCreateWithFlags(&data_event, cudaEventBlockingSync));
+	}
 };
+
 
 void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
 	}
-	curr_stream = new adept_stream();
 	gpu_id = _gpu_id;
-	cudaErrchk(cudaSetDevice(gpu_id));
-	cudaErrchk(cudaStreamCreate(&(curr_stream->stream)));
+	curr_stream = new adept_stream(gpu_id);
 
 	total_alignments = batch_size;
 	max_ref_size = _max_ref_size;
@@ -104,7 +111,9 @@ void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::s
 	cudaStreamSynchronize(curr_stream->stream);
 	int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
 	kernel::dna_kernel<<<total_alignments, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
+	cudaErrchk(cudaEventRecord(curr_stream->kernel_event, curr_stream->stream));
 }
+
 int driver::get_new_min_length(short* alAend, short* alBend, int blocksLaunched){
         int newMin = 1000;
         int maxA = 0;
@@ -132,6 +141,7 @@ void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_st
     cudaErrchk(cudaMemcpyAsync(alAbeg, ref_start_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
 	cudaErrchk(cudaMemcpyAsync(alBbeg, query_start_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
     cudaErrchk(cudaMemcpyAsync(top_scores_cpu, scores_gpu, total_alignments * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+	cudaErrchk(cudaEventRecord(curr_stream->data_event, curr_stream->stream));
 }
 
 void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend){
@@ -173,6 +183,8 @@ void driver::cleanup(){
 	cudaErrchk(cudaFreeHost(que_cstr));
 	dealloc_gpu_mem();
 	cudaStreamDestroy(curr_stream->stream);
+	cudaEventDestroy(curr_stream->kernel_event);
+	cudaEventDestroy(curr_stream->data_event);
 }
 
 void driver::free_results(){
@@ -206,3 +218,26 @@ size_t driver::get_batch_size(int gpu_id, int max_q_size, int max_r_size, int pe
 		return max_concurr_aln;
 }
 
+bool driver::kernel_done(){
+	auto status = cudaEventQuery(curr_stream->kernel_event);
+	if(status == cudaSuccess)
+		return true;
+	else
+		return false;
+}
+
+bool driver::dth_done(){
+	auto status = cudaEventQuery(curr_stream->data_event);
+	if(status == cudaSuccess)
+		return true;
+	else
+		return false;
+}
+
+void driver::kernel_synch(){
+	cudaErrchk(cudaEventSynchronize(curr_stream->kernel_event));
+}
+
+void driver::dth_synch(){
+	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
+}
