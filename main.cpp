@@ -55,7 +55,7 @@ int main(int argc, char* argv[]){
 
   ADEPT::driver sw_driver;
   std::array<short, 4> scores = {3,-3,-6,-1};
-  sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 0);
+  sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 30000, 0);
   sw_driver.kernel_launch(ref_sequences, que_sequences);
   sw_driver.mem_cpy_dth();
   sw_driver.dth_synch();

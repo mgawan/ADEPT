@@ -41,7 +41,7 @@ struct ADEPT::adept_stream{
 };
 
 
-void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id){
+void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
@@ -50,42 +50,44 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 	cudaSetDevice(gpu_id);
 	curr_stream = new adept_stream(gpu_id);
 
-	total_alignments = batch_size;
+	total_alignments = _tot_alns;
+	batch_size = _batch_size;
+
 	max_ref_size = _max_ref_size;
 	max_que_size = _max_query_size;
 	//host pinned memory for offsets
-	cudaErrchk(cudaMallocHost(&offset_ref, sizeof(int) * total_alignments));
-	cudaErrchk(cudaMallocHost(&offset_que, sizeof(int) * total_alignments));
+	cudaErrchk(cudaMallocHost(&offset_ref, sizeof(int) * batch_size));
+	cudaErrchk(cudaMallocHost(&offset_que, sizeof(int) * batch_size));
 	//host pinned memory for sequences
-	cudaErrchk(cudaMallocHost(&ref_cstr, sizeof(char) * max_ref_size * total_alignments));
-	cudaErrchk(cudaMallocHost(&que_cstr, sizeof(char) * max_que_size * total_alignments));
+	cudaErrchk(cudaMallocHost(&ref_cstr, sizeof(char) * max_ref_size * batch_size));
+	cudaErrchk(cudaMallocHost(&que_cstr, sizeof(char) * max_que_size * batch_size));
 	// host pinned memory for results
 	initialize_alignments();
 	//device memory for sequences
-	cudaErrchk(cudaMalloc(&ref_cstr_d, sizeof(char) * max_ref_size * total_alignments));
-	cudaErrchk(cudaMalloc(&que_cstr_d,  sizeof(char)* max_que_size * total_alignments));
+	cudaErrchk(cudaMalloc(&ref_cstr_d, sizeof(char) * max_ref_size * batch_size));
+	cudaErrchk(cudaMalloc(&que_cstr_d,  sizeof(char)* max_que_size * batch_size));
 	//device memory for offsets and results
 	allocate_gpu_mem();
 
 }
 
-void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset=0){
-	if(ref_seqs.size() != total_alignments)
-		std::cerr << "INITIALIZATION ERROR: driver was initialized with a batch size that does not match to the vector passed to kernel\n";
+void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset){
+	if(ref_seqs.size() != batch_size)
+		std::cerr << "INITIALIZATION ERROR: driver was initialized with wrong number of alignments\n";
 	//preparing offsets 
 	unsigned running_sum = 0;
-	for(int i = 0; i < total_alignments; i++){
+	for(int i = 0; i < batch_size; i++){
 		running_sum +=ref_seqs[i].size();
 		offset_ref[i] = running_sum;
 	}
-	total_length_ref = offset_ref[total_alignments - 1];
+	total_length_ref = offset_ref[batch_size - 1];
 
 	running_sum = 0;
 	for(int i = 0; i < query_seqs.size(); i++){
 		running_sum +=query_seqs[i].size();
 		offset_que[i] = running_sum; 
 	}
-	total_length_que = offset_que[total_alignments - 1];
+	total_length_que = offset_que[batch_size - 1];
 
 	//moving sequences from vector to cstrings
 	unsigned offsetSumA = 0;
@@ -108,11 +110,11 @@ void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::s
 	size_t   ShmemBytes = totShmem + alignmentPad;
 	if(ShmemBytes > 48000)
         cudaFuncSetAttribute(kernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
-	kernel::dna_kernel<<<total_alignments, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
+	kernel::dna_kernel<<<batch_size, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
 	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
 	cudaStreamSynchronize(curr_stream->stream);
-	int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
-	kernel::dna_kernel<<<total_alignments, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
+	int new_length = get_new_min_length(results.ref_end, results.query_end, batch_size);
+	kernel::dna_kernel<<<batch_size, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
 	cudaErrchk(cudaEventRecord(curr_stream->kernel_event, curr_stream->stream));
 }
 
@@ -133,22 +135,22 @@ int driver::get_new_min_length(short* alAend, short* alBend, int blocksLaunched)
 }
 
 void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB){
-	cudaErrchk(cudaMemcpyAsync(offset_ref_gpu, offsetA_h, (total_alignments) * sizeof(int), cudaMemcpyHostToDevice, curr_stream->stream));
-    cudaErrchk(cudaMemcpyAsync(offset_query_gpu, offsetB_h, (total_alignments) * sizeof(int), cudaMemcpyHostToDevice, curr_stream->stream));
+	cudaErrchk(cudaMemcpyAsync(offset_ref_gpu, offsetA_h, (batch_size) * sizeof(int), cudaMemcpyHostToDevice, curr_stream->stream));
+    cudaErrchk(cudaMemcpyAsync(offset_query_gpu, offsetB_h, (batch_size) * sizeof(int), cudaMemcpyHostToDevice, curr_stream->stream));
     cudaErrchk(cudaMemcpyAsync(strA_d, strA, totalLengthA * sizeof(char), cudaMemcpyHostToDevice, curr_stream->stream));
     cudaErrchk(cudaMemcpyAsync(strB_d, strB, totalLengthB * sizeof(char), cudaMemcpyHostToDevice, curr_stream->stream));
 }
 
-void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu, unsigned batch_aln_size = total_alignments){
-    cudaErrchk(cudaMemcpyAsync(alAbeg, ref_start_gpu, batch_aln_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
-	cudaErrchk(cudaMemcpyAsync(alBbeg, query_start_gpu, batch_aln_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
-    cudaErrchk(cudaMemcpyAsync(top_scores_cpu, scores_gpu, batch_aln_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu, int res_offset){
+    cudaErrchk(cudaMemcpyAsync(alAbeg + res_offset, ref_start_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+	cudaErrchk(cudaMemcpyAsync(alBbeg + res_offset, query_start_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+    cudaErrchk(cudaMemcpyAsync(top_scores_cpu + res_offset, scores_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
 	cudaErrchk(cudaEventRecord(curr_stream->data_event, curr_stream->stream));
 }
 
-void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, unsigned batch_aln_size = total_alignments, int res_offset=0){
-    cudaErrchk(cudaMemcpyAsync(alAend + res_offset, ref_end_gpu, batch_aln_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
-    cudaErrchk(cudaMemcpyAsync(alBend + res_offset, query_end_gpu, batch_aln_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset){
+    cudaErrchk(cudaMemcpyAsync(alAend + res_offset, ref_end_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
+    cudaErrchk(cudaMemcpyAsync(alBend + res_offset, query_end_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
 }
 
 void driver::mem_cpy_dth(){
@@ -198,13 +200,13 @@ void driver::free_results(){
 }
 
 void driver::allocate_gpu_mem(){
-    cudaErrchk(cudaMalloc(&offset_query_gpu, (total_alignments) * sizeof(int)));
-    cudaErrchk(cudaMalloc(&offset_ref_gpu, (total_alignments) * sizeof(int)));
-    cudaErrchk(cudaMalloc(&ref_start_gpu, (total_alignments) * sizeof(short)));
-    cudaErrchk(cudaMalloc(&ref_end_gpu, (total_alignments) * sizeof(short)));
-    cudaErrchk(cudaMalloc(&query_end_gpu, (total_alignments) * sizeof(short)));
-    cudaErrchk(cudaMalloc(&query_start_gpu, (total_alignments) * sizeof(short)));
-    cudaErrchk(cudaMalloc(&scores_gpu, (total_alignments) * sizeof(short)));
+    cudaErrchk(cudaMalloc(&offset_query_gpu, (batch_size) * sizeof(int)));
+    cudaErrchk(cudaMalloc(&offset_ref_gpu, (batch_size) * sizeof(int)));
+    cudaErrchk(cudaMalloc(&ref_start_gpu, (batch_size) * sizeof(short)));
+    cudaErrchk(cudaMalloc(&ref_end_gpu, (batch_size) * sizeof(short)));
+    cudaErrchk(cudaMalloc(&query_end_gpu, (batch_size) * sizeof(short)));
+    cudaErrchk(cudaMalloc(&query_start_gpu, (batch_size) * sizeof(short)));
+    cudaErrchk(cudaMalloc(&scores_gpu, (batch_size) * sizeof(short)));
 }
 /*
 void driver::launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
