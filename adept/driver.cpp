@@ -1,3 +1,27 @@
+// MIT License
+//
+// Copyright (c) 2020, The Regents of the University of California,
+// through Lawrence Berkeley National Laboratory (subject to receipt of any
+// required approvals from the U.S. Dept. of Energy).  All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "kernel.hpp"
 #include "driver.hpp"
 
@@ -18,9 +42,11 @@ gpuAssert(cudaError_t code, const char* file, int line, bool abort = true){
 using namespace ADEPT;
 
 unsigned 
-getMaxLength (std::vector<std::string> v){
+getMaxLength (std::vector<std::string> v)
+{
     unsigned maxLength = 0;
-    for(auto str : v){
+    for(auto str : v)
+    {
         if(maxLength < str.length())
         {
             maxLength = str.length();
@@ -49,6 +75,7 @@ void
 driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id)
 {
     algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
+
     if(sequence == SEQ_TYPE::DNA){
         match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
     }
@@ -58,17 +85,22 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     total_alignments = batch_size;
     max_ref_size = _max_ref_size;
     max_que_size = _max_query_size;
+
     //host pinned memory for offsets
     cudaErrchk(cudaMallocHost(&offset_ref, sizeof(int) * total_alignments));
     cudaErrchk(cudaMallocHost(&offset_que, sizeof(int) * total_alignments));
+
     //host pinned memory for sequences
     cudaErrchk(cudaMallocHost(&ref_cstr, sizeof(char) * max_ref_size * total_alignments));
     cudaErrchk(cudaMallocHost(&que_cstr, sizeof(char) * max_que_size * total_alignments));
+
     // host pinned memory for results
     initialize_alignments();
+
     //device memory for sequences
     cudaErrchk(cudaMalloc(&ref_cstr_d, sizeof(char) * max_ref_size * total_alignments));
     cudaErrchk(cudaMalloc(&que_cstr_d,  sizeof(char)* max_que_size * total_alignments));
+
     //device memory for offsets and results
     allocate_gpu_mem();
 }
