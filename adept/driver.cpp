@@ -247,6 +247,7 @@ void driver::dth_synch(){
 }
 
  aln_results driver::launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
+	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	int dev_count;
 	cudaGetDeviceCount(&dev_count);
 	if(num_gpus < dev_count){
@@ -357,7 +358,7 @@ void driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::s
 		std::cout<<"alns in iteration:"<<i<<" are:"<<its_ref_vecs[i].size()<<"\n";
 
 	driver sw_driver_loc;
-	sw_driver_loc.initialize(scores, _algorithm, _sequence, _cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
+	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
