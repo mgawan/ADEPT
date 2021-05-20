@@ -1,6 +1,7 @@
 #include "kernel.hpp"
 #include "driver.hpp"
 #include <thread>
+#include <functional>
 
 #define cudaErrchk(ans)                                                                  \
 {                                                                                    \
@@ -314,7 +315,7 @@ void driver::dth_synch(){
 
 	std::thread threads[dev_count];
 	for(int i = 0; i < dev_count; i++){
-		threads[i] = std::thread(driver::thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i, num_gpus);
+		threads[i] = std::thread(&driver::thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i, num_gpus, scores);
 	}
 
 	for(int i = 0; i < dev_count; i++){
@@ -324,7 +325,7 @@ void driver::dth_synch(){
 	return global_results;
  }
 
-void driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id, int num_gpus){
+void driver::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, unsigned per_gpu_alns, aln_results g_results, int dev_id, int num_gpus, short scores[]){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = ceil((float)alns_this_gpu/batch_size);
 	int batch_last_it = alns_this_gpu%batch_size;
