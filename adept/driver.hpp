@@ -40,10 +40,9 @@ namespace ADEPT{
 
 		public:
 			aln_results launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus);
-			void thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id);
+			void thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id, int num_gpus);
 			void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id);// each adept_dna object will have a unique cuda stream
 			void kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset = 0);
-			void launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus);
 			void mem_cpy_dth(int offset=0);
 			aln_results get_alignments();
 			bool kernel_done();

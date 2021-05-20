@@ -252,8 +252,8 @@ void driver::dth_synch(){
 	if(num_gpus < dev_count){
 		std::cout<<"WARNING: using "<<num_gpus<<" out of "<< dev_count<<" available GPUs\n";
 	}else if(num_gpus > dev_count){
-		std::err<<"only "<<dev_count<<" GPUs available, cannot use more than available GPUs. \n";
-		exit();
+		std::cerr<<"only "<<dev_count<<" GPUs available, cannot use more than available GPUs. \n";
+		exit(1);
 	}else{
 		std::cout<<"Using all the available GPUs \n";
 	}
@@ -286,11 +286,11 @@ void driver::dth_synch(){
 
 		std::vector<std::string> temp_ref(start_, end_);
 
-		start_ = que_seqs.begin() + i * alns_per_gpu;
+		start_ = query_seqs.begin() + i * alns_per_gpu;
 		if(i == num_gpus - 1)
-			end_ = que_seqs.end() + (i + 1) * alns_per_gpu + left_over;
+			end_ = query_seqs.end() + (i + 1) * alns_per_gpu + left_over;
 		else
-			end_ = que_seqs.end() + (i + 1) * alns_per_gpu;
+			end_ = query_seqs.end() + (i + 1) * alns_per_gpu;
 
 		std::vector<std::string> temp_que(start_, end_);
 
@@ -313,7 +313,7 @@ void driver::dth_synch(){
 
 	std::thread threads[dev_count];
 	for(int i = 0; i < dev_count; i++){
-		threads[i] = std::thread(thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i);
+		threads[i] = std::thread(driver::thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i, num_gpus);
 	}
 
 	for(int i = 0; i < dev_count; i++){
@@ -323,7 +323,7 @@ void driver::dth_synch(){
 	return global_results;
  }
 
-void driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id){
+void driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id, int num_gpus){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = ceil((float)alns_this_gpu/batch_size);
 	int batch_last_it = alns_this_gpu%batch_size;
