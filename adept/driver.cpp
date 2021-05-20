@@ -246,7 +246,7 @@ void driver::dth_synch(){
 	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
 }
 
-void launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
+ aln_results driver::launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
 	int dev_count;
 	cudaGetDeviceCount(&dev_count);
 	if(num_gpus < dev_count){
@@ -311,9 +311,19 @@ void launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequen
 	cudaErrchk(cudaMallocHost(&(global_results.query_end), sizeof(short)*total_alignments));
 	cudaErrchk(cudaMallocHost(&(global_results.top_scores), sizeof(short)*total_alignments));
 
+	std::thread threads[dev_count];
+	for(int i = 0; i < dev_count; i++){
+		threads[i] = std::thread(thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i);
+	}
+
+	for(int i = 0; i < dev_count; i++){
+		threads[i].join();
+	}
+
+	return global_results;
  }
 
- aln_results driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results g_results){
+void driver::thread_launch(std::vector<std::string>& ref_vec, std::vector<std::string>& que_vec, unsigned per_gpu_alns, aln_results& g_results, int dev_id){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = ceil((float)alns_this_gpu/batch_size);
 	int batch_last_it = alns_this_gpu%batch_size;
@@ -347,7 +357,7 @@ void launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequen
 		std::cout<<"alns in iteration:"<<i<<" are:"<<its_ref_vecs[i].size()<<"\n";
 
 	driver sw_driver_loc;
-	sw_driver_loc.initialize(scores, _algorithm, _sequence, _cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, thread_id);
+	sw_driver_loc.initialize(scores, _algorithm, _sequence, _cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
@@ -356,12 +366,14 @@ void launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequen
 
 	auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
 	for(int i = 0; i < alns_this_gpu; i++){
-		g_results.top_scores[gpu_id*per_gpu_alns + i] = loc_results.top_scores[i];
-		g_results.ref_begin[gpu_id*per_gpu_alns + i] = loc_results.ref_begin[i];
-		g_results.ref_end[gpu_id*per_gpu_alns + i] = loc_results.ref_end[i];
-		g_results.query_begin[gpu_id*per_gpu_alns + i] = loc_results.query_begin[i];
-		g_results.query_end[gpu_id*per_gpu_alns + i] = loc_results.query_end[i];
+		g_results.top_scores[dev_id*per_gpu_alns + i] = loc_results.top_scores[i];
+		g_results.ref_begin[dev_id*per_gpu_alns + i] = loc_results.ref_begin[i];
+		g_results.ref_end[dev_id*per_gpu_alns + i] = loc_results.ref_end[i];
+		g_results.query_begin[dev_id*per_gpu_alns + i] = loc_results.query_begin[i];
+		g_results.query_end[dev_id*per_gpu_alns + i] = loc_results.query_end[i];
 	}
 
-	return g_results;
+	sw_driver_loc.cleanup();
+  	sw_driver_loc.free_results();
+	//return g_results;
  }
