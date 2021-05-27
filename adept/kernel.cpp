@@ -25,12 +25,12 @@
 #include <CL/sycl.hpp>
 #include "kernel.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 // ------------------------------------------------------------------------------------ //
 
-__ SYCL_DEVICE_ONLY__ inline short
-kernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item)
+SYCL_EXTERNAL inline short 
+Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item)
 {
         int   warpSize = 32;
         short myMax    = val;
@@ -48,7 +48,7 @@ kernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, unsig
         {
             int tempVal = sg.shuffle_down(val, offset);
 
-            val = sycl::max(val, tempVal);
+            val = sycl::max(static_cast<int>(val), tempVal);
 
             newInd  = sg.shuffle_down(ind, offset);
             newInd2 = sg.shuffle_down(ind2, offset);
@@ -90,8 +90,8 @@ kernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, unsig
 
 // ------------------------------------------------------------------------------------ //
 
-__ SYCL_DEVICE_ONLY__ short
-kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item, short* locTots, short *locInds, short *locInds, short *locInds2)
+SYCL_EXTERNAL short
+Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
 {
     auto sg            = item.get_sub_group();
 
@@ -142,8 +142,8 @@ kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInde
 
 // ------------------------------------------------------------------------------------ //
 
-__ SYCL_SINGLE_SOURCE__ short
-kernel::findMaxFour(short first, short second, short third, short fourth)
+ short
+Akernel::findMaxFour(short first, short second, short third, short fourth)
 {
     short maxScore = 0;
 
@@ -157,11 +157,11 @@ kernel::findMaxFour(short first, short second, short third, short fourth)
 // ------------------------------------------------------------------------------------ //
 
 SYCL_EXTERNAL void
-kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                    unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
+                    int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
                     short* seqB_align_begin, short* seqB_align_end, short* top_scores, 
                     short matchScore, short misMatchScore, short startGap, short extendGap, 
-                    bool reverse, sycl::nd_item<3> &item, 
+                    bool reverse, sycl::nd_item<1> &item, 
                     char *is_valid_array,
                     short *sh_prev_E,
                     short *sh_prev_H,
@@ -181,8 +181,8 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
 
-    unsigned lengthSeqA;
-    unsigned lengthSeqB;
+    int lengthSeqA;
+    int lengthSeqB;
     
     // local pointers
     char*    seqA;
@@ -210,8 +210,8 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
         lengthSeqB = seqB_align_end[block_Id];
     }
     
-    unsigned maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
-    unsigned minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
+    int maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
+    int minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
 
     for(int p = thread_Id; p < minSize; p+=32)
     {
@@ -371,7 +371,7 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 
     item.barrier(sycl::access::fence_space::local_space);
 
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {
@@ -412,10 +412,10 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 // ------------------------------------------------------------------------------------ //
 
 SYCL_EXTERNAL void
-kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                                        unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
+                                        int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
                                         short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, 
-                                        sycl::nd_item<3> &item, 
+                                        sycl::nd_item<1> &item, 
                                         char *is_valid_array,
                                         short *sh_prev_E,
                                         short *sh_prev_H,
@@ -437,8 +437,8 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
 
-    unsigned lengthSeqA;
-    unsigned lengthSeqB;
+    int lengthSeqA;
+    int lengthSeqB;
     
     // local pointers
     char*    seqA;
@@ -463,8 +463,8 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
             seqB       = seqB_array + prefix_lengthB[block_Id - 1];
     }
     // what is the max length and what is the min length
-    unsigned maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
-    unsigned minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
+    int maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
+    int minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
 
     // shared memory space for storing longer of the two strings
     memset(is_valid, 0, minSize);
@@ -625,8 +625,7 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
 
     item.barrier(sycl::access::fence_space::local_space);
 
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,
-                                                                    minSize, false, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, false, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(thread_Id == 0)
     {
@@ -649,7 +648,7 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
 
 /*
 SYCL_EXTERNAL void
-kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
+Akernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                                         unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
                                         short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix)
 {

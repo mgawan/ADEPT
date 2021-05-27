@@ -55,7 +55,7 @@ struct aln_results{
 //
 // struct adept_stream
 //
-struct stream;
+struct adept_stream;
 
 //
 // class driver
@@ -68,7 +68,7 @@ private:
     ALG_TYPE algorithm;
     SEQ_TYPE sequence;
     CIGAR cigar_avail;
-    adept_stream *curr_stream = nullptr;
+    adept_stream *curr_stream;
 
     int max_ref_size, max_que_size;
     char *ref_cstr, *que_cstr;

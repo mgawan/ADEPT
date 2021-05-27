@@ -32,7 +32,7 @@
 
 // constants
 const int MAX_REF_LEN    =  1200;
-const int MAX_QUERY_LEN  =   300;
+const int MAX_QUERY_LEN  =   256;
 const int BATCH_SIZE     = 30000;
 const int GPU_ID         =     0;
 
@@ -160,14 +160,22 @@ main(int argc, char* argv[])
     // copy memory back from device to host
     sw_driver.mem_cpy_dth();
 
+    std::cout << "D2H copy: DONE" << std::endl;
+
     // synchronize
     sw_driver.dth_synch();
+
+    std::cout << "Synchronization: DONE" << std::endl;
 
     // cleanup kernel
     sw_driver.cleanup();
 
+    std::cout << "Cleanup: DONE" << std::endl;
+
     // get alignment results
     auto results = sw_driver.get_alignments();
+
+    std::cout << "Get Alignments: DONE" << std::endl;
 
     // ------------------------------------------------------------------------------------ //
 
