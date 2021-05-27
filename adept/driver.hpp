@@ -29,7 +29,7 @@
 #include <string>
 
 // set shared memory setting to 48KB
-#define SHMEM_BYTES            48000
+const int SHMEM_BYTES = 48000;
 
 // ------------------------------------------------------------------------------------ //
 
@@ -55,7 +55,7 @@ struct aln_results{
 //
 // struct adept_stream
 //
-struct adept_stream;
+struct stream;
 
 //
 // class driver
@@ -64,34 +64,38 @@ class driver
 {
 private:
     short match_score, mismatch_score, gap_start, gap_extend;
-    int gpu_id;
+    int device_id;
     ALG_TYPE algorithm;
     SEQ_TYPE sequence;
     CIGAR cigar_avail;
     adept_stream *curr_stream = nullptr;
 
-    unsigned max_ref_size, max_que_size;
+    int max_ref_size, max_que_size;
     char *ref_cstr, *que_cstr;
-    unsigned total_alignments;
-    unsigned *offset_ref, *offset_que;
-    unsigned total_length_ref, total_length_que;
+    int total_alignments;
+    int *offset_ref, *offset_que;
+    int total_length_ref, total_length_que;
     short *ref_start_gpu, *ref_end_gpu, *query_start_gpu, *query_end_gpu, *scores_gpu;
-    unsigned* offset_ref_gpu, *offset_query_gpu;
+    int *offset_ref_gpu, *offset_query_gpu;
     char *ref_cstr_d, *que_cstr_d;
+
     aln_results results;
 
     void allocate_gpu_mem();
     void dealloc_gpu_mem();
     void initialize_alignments();
     
-    void mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
+    void mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, int* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, int totalLengthA, int totalLengthB);
     
     void mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu);
     void mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend);
     int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
 
 public:
-    void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _gpu_id);// each adept_dna object will have a unique cuda stream
+    // default constructor
+    driver() = default;
+
+    void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int batch_size, int _device_id); // each adept_dna object will have a unique cuda stream
     void kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs);
     void mem_cpy_dth();
     aln_results get_alignments();
@@ -101,6 +105,6 @@ public:
     void dth_synch();
     void cleanup();
     void free_results();
-    size_t get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
+    size_t get_batch_size(int device_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 };
 }

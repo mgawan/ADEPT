@@ -31,51 +31,90 @@
 #include <sys/time.h>
 
 // macros for amino acids and matrix sizes
-#define NUM_OF_AA                    21
-#define ENCOD_MAT_SIZE               91
-#define SCORE_MAT_SIZE               576
+const int NUM_OF_AA      = 21;
+const int ENCOD_MAT_SIZE = 91;
+const int SCORE_MAT_SIZE = 576;
 
 // ------------------------------------------------------------------------------------ //
 
 //
 // namespace kernel
 //
-namespace kernel{
-__device__ short
-warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse);
+namespace kernel
+{
+__ SYCL_DEVICE_ONLY__ short
+warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item);
 
-__device__ short
+__ SYCL_DEVICE_ONLY__ short
 warpReduceMax(short val, unsigned lengthSeqB);
 
-__device__ short
-blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse);
+__ SYCL_DEVICE_ONLY__ short
+blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item,
+                                    short *locTots, short *locInds, short *locInds2);
 
-__device__ short
+__ SYCL_DEVICE_ONLY__ short
 blockShuffleReduce(short val, unsigned lengthSeqB);
 
-__device__ __host__ short
-           findMax(short array[], int length, int* ind);
+__ SYCL_SINGLE_SOURCE__ short
+findMax(short array[], int length, int* ind);
 
-__device__ __host__ short
-            findMaxFour(short first, short second, short third, short fourth);
+__ SYCL_SINGLE_SOURCE__ short
+findMaxFour(short first, short second, short third, short fourth);
 
-__device__ void
+__ SYCL_DEVICE_ONLY__ void
 traceBack(short current_i, short current_j, short* seqA_align_begin,
           short* seqB_align_begin, const char* seqA, const char* seqB, short* I_i,
           short* I_j, unsigned lengthSeqB, unsigned lengthSeqA, unsigned int* diagOffset);
 
-__global__ void
-dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap, bool reverse);
+SYCL_EXTERNAL void
+kernel::dna_kernel(char* seqA_array, 
+                   char* seqB_array, unsigned* prefix_lengthA,
+                   unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                   short* seqB_align_begin, short* seqB_align_end, short* top_scores, 
+                   short matchScore, short misMatchScore, short startGap, short extendGap, 
+                   bool reverse, sycl::nd_item<3> &item, 
+                   char *is_valid_array,
+                   short *sh_prev_E,
+                   short *sh_prev_H,
+                   short *sh_prev_prev_H,
+                   short *local_spill_prev_E,
+                   short *local_spill_prev_H,
+                   short *local_spill_prev_prev_H,
+                   short *locTots,
+                   short *locInds,
+                   short *locInds2);
 
-__global__ void
+SYCL_EXTERNAL void
 sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                     unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix);
+                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, sycl::nd_item<3> &item, 
+                                    char *is_valid_array,
+                                    short *sh_prev_E,
+                                    short *sh_prev_H,
+                                    short *sh_prev_prev_H,
+                                    short *local_spill_prev_E,
+                                    short *local_spill_prev_H,
+                                    short *local_spill_prev_prev_H,
+                                    short *sh_aa_encoding, 
+                                    short *sh_aa_scoring,
+                                    short *locTots,
+                                    short *locInds,
+                                    short *locInds2);
 
-__global__ void
+SYCL_EXTERNAL void
 sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                     unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix);
+                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, sycl::nd_item<3> &item, 
+                                    char *is_valid_array,
+                                    short *sh_prev_E,
+                                    short *sh_prev_H,
+                                    short *sh_prev_prev_H,
+                                    short *local_spill_prev_E,
+                                    short *local_spill_prev_H,
+                                    short *local_spill_prev_prev_H,
+                                    short *sh_aa_encoding, 
+                                    short *sh_aa_scoring,
+                                    short *locTots,
+                                    short *locInds,
+                                    short *locInds2);
 }

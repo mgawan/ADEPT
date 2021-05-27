@@ -30,17 +30,27 @@
 #include <string>
 #include <bits/stdc++.h>
 
-#define MAX_REF_LEN       1200
-#define MAX_QUERY_LEN      300
-#define BATCH_SIZE       30000
-#define GPU_ID               0
+// constants
+const int MAX_REF_LEN    =  1200;
+const int MAX_QUERY_LEN  =   300;
+const int BATCH_SIZE     = 30000;
+const int GPU_ID         =     0;
+
+// scores
+const short MATCH          = 3;
+const short MISMATCH       = -3;
+const short GAP_OPEN       = -6;
+const short GAP_EXTEND     = -1;
 
 using namespace std;
+
+// ------------------------------------------------------------------------------------ //
 
 //
 // main function
 //
-int main(int argc, char* argv[])
+int
+main(int argc, char* argv[])
 {
     // parse cmd line args
     if (argc < 4)
@@ -64,6 +74,12 @@ int main(int argc, char* argv[])
     unsigned largestA = 0, largestB = 0;
 
     int totSizeA = 0, totSizeB = 0;
+
+    // ------------------------------------------------------------------------------------ //
+
+    //
+    // argparser
+    //
 
     // extract reference sequences
     if(ref_file.is_open())
@@ -116,20 +132,46 @@ int main(int argc, char* argv[])
         quer_file.close();
     }
 
+    // sanity checks - not in release mode. - can use try-catch here if needed
+    assert(largestA > 0);
+    assert(largestB > 0);
+    assert(que_sequences.size() > 0);
+    assert(ref_sequences.size() > 0);
+
+    // ------------------------------------------------------------------------------------ //
+
+    //
+    // ADEPT driver
+    //
+
+    // instantiate ADEPT driver
     ADEPT::driver sw_driver;
-    std::array<short, 4> scores = {3,-3,-6,-1};
+
+    // init scores array
+    std::array<short, 4> scores = {MATCH, MISMATCH, GAP_OPEN, GAP_EXTEND};
+
+    // initialize ADEPT driver
     sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 
                         MAX_REF_LEN, MAX_QUERY_LEN, BATCH_SIZE, GPU_ID);
 
+    // launch kernel
     sw_driver.kernel_launch(ref_sequences, que_sequences);
+
+    // copy memory back from device to host
     sw_driver.mem_cpy_dth();
+
+    // synchronize
     sw_driver.dth_synch();
 
+    // cleanup kernel
     sw_driver.cleanup();
 
+    // get alignment results
     auto results = sw_driver.get_alignments();
 
     // ------------------------------------------------------------------------------------ //
+
+    //
     // print the results
     //
 

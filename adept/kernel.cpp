@@ -22,28 +22,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <CL/sycl.hpp>
 #include "kernel.hpp"
+
+using namespace cl::sycl;
 
 // ------------------------------------------------------------------------------------ //
 
-__inline__ __device__ short
-kernel::warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse)
+__ SYCL_DEVICE_ONLY__ inline short
+kernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item)
 {
         int   warpSize = 32;
-        short myMax    = 0;
+        short myMax    = val;
         short newInd   = 0;
         short newInd2  = 0;
         short ind      = myIndex;
         short ind2     = myIndex2;
-        myMax          = val;
-        unsigned mask  = __ballot_sync(0xffffffff, threadIdx.x < lengthSeqB);  // blockDim.x
+
+        auto sg = item.get_sub_group();
+
+        // unsigned mask  = __ballot_sync(0xffffffff, item.get_local_id(0) < lengthSeqB);  // item.get_local_range().get(2)
+
         // unsigned newmask;
         for(int offset = warpSize / 2; offset > 0; offset /= 2)
         {
-            int tempVal = __shfl_down_sync(mask, val, offset);
-            val     = max(val,tempVal);
-            newInd  = __shfl_down_sync(mask, ind, offset);
-            newInd2 = __shfl_down_sync(mask, ind2, offset);
+            int tempVal = sg.shuffle_down(val, offset);
+
+            val = sycl::max(val, tempVal);
+
+            newInd  = sg.shuffle_down(ind, offset);
+            newInd2 = sg.shuffle_down(ind2, offset);
 
             if(val != myMax)
             {
@@ -51,13 +59,13 @@ kernel::warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, uns
                 ind2  = newInd2;
                 myMax = val;
             }
-            else if((val == tempVal) ) // this is kind of redundant and has been done purely to match the results
-                                                                        // with SSW to get the smallest alignment with highest score. Theoreticaly
-                                                                        // all the alignmnts with same score are same.
+            else if(val == tempVal) // this is kind of redundant and has been done purely to match the results
+                                    // with SSW to get the smallest alignment with highest score. Theoreticaly
+                                    // all the alignmnts with same score are same.
             {
                 if(reverse == true)
                 {
-                    if(newInd2 > ind2)
+                    if (newInd2 > ind2)
                     {
                         ind = newInd;
                         ind2 = newInd2;
@@ -65,7 +73,7 @@ kernel::warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, uns
                 }
                 else
                 {
-                    if(newInd < ind)
+                    if (newInd < ind)
                     {
                         ind = newInd;
                         ind2 = newInd2;
@@ -80,19 +88,21 @@ kernel::warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, uns
         return val;
 }
 
-__device__ short
-kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse)
+// ------------------------------------------------------------------------------------ //
+
+__ SYCL_DEVICE_ONLY__ short
+kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, unsigned lengthSeqB, bool reverse, sycl::nd_item<3> &item, short* locTots, short *locInds, short *locInds, short *locInds2)
 {
-    int              laneId = threadIdx.x % 32;
-    int              warpId = threadIdx.x / 32;
-    __shared__ short locTots[32];
-    __shared__ short locInds[32];
-    __shared__ short locInds2[32];
+    auto sg            = item.get_sub_group();
+
+    short              laneId = sg.get_local_id();
+    short              warpId = sg.get_group_id();
+
     short            myInd  = myIndex;
     short            myInd2 = myIndex2;
-    myVal                   = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse);
+    myVal                   = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
 
-    __syncthreads();
+    item.barrier(sycl::access::fence_space::local_space);
     
     if(laneId == 0)
         locTots[warpId] = myVal;
@@ -100,16 +110,14 @@ kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInde
         locInds[warpId] = myInd;
     if(laneId == 0)
         locInds2[warpId] = myInd2;
-    __syncthreads();
     
-    unsigned check =
-                ((32 + blockDim.x - 1) / 32);  // mimicing the ceil function for floats
-                                                                             // float check = ((float)blockDim.x / 32);
-    if(threadIdx.x < check)  /////******//////
+    unsigned check = ((32 + item.get_local_range(0) - 1) / 32);  // mimicing the ceil function for floats
+                                                                             // float check = ((float)item.get_local_range(0) / 32);
+    if(item.get_local_id(0) < check)  /////******//////
     {
-        myVal  = locTots[threadIdx.x];
-        myInd  = locInds[threadIdx.x];
-        myInd2 = locInds2[threadIdx.x];
+        myVal  = locTots[item.get_local_id(0)];
+        myInd  = locInds[item.get_local_id(0)];
+        myInd2 = locInds2[item.get_local_id(0)];
     }
     else
     {
@@ -118,20 +126,23 @@ kernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInde
         myInd2 = -1;
     }
     
-    __syncthreads();
+    item.barrier(sycl::access::fence_space::local_space);
 
     if(warpId == 0)
     {
-        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse);
+        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
         myIndex  = myInd;
         myIndex2 = myInd2;
     }
-    
-    __syncthreads();
+
+    item.barrier(sycl::access::fence_space::local_space);
+
     return myVal;
 }
 
-__device__ __host__ short
+// ------------------------------------------------------------------------------------ //
+
+__ SYCL_SINGLE_SOURCE__ short
 kernel::findMaxFour(short first, short second, short third, short fourth)
 {
     short maxScore = 0;
@@ -143,24 +154,39 @@ kernel::findMaxFour(short first, short second, short third, short fourth)
     return maxScore;
 }
 
-__global__ void
+// ------------------------------------------------------------------------------------ //
+
+SYCL_EXTERNAL void
 kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                     unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
                     short* seqB_align_begin, short* seqB_align_end, short* top_scores, 
                     short matchScore, short misMatchScore, short startGap, short extendGap, 
-                    bool reverse)
+                    bool reverse, sycl::nd_item<3> &item, 
+                    char *is_valid_array,
+                    short *sh_prev_E,
+                    short *sh_prev_H,
+                    short *sh_prev_prev_H,
+                    short *local_spill_prev_E,
+                    short *local_spill_prev_H,
+                    short *local_spill_prev_prev_H,
+                    short *locTots,
+                    short *locInds,
+                    short *locInds2)
 {
-    int block_Id  = blockIdx.x;
-    int thread_Id = threadIdx.x;
-    short laneId = threadIdx.x%32;
-    short warpId = threadIdx.x/32;
+    auto sg = item.get_sub_group();
+
+    int block_Id  = item.get_group(0);
+    int thread_Id = item.get_local_id(0);
+
+    short laneId = sg.get_local_id();
+    short warpId = sg.get_group_id();
+
     unsigned lengthSeqA;
     unsigned lengthSeqB;
     
     // local pointers
     char*    seqA;
     char*    seqB;
-    extern __shared__ char is_valid_array[];
     char* is_valid = &is_valid_array[0];
     char* longer_seq;
     
@@ -230,7 +256,8 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
         }
     }
 
-    __syncthreads(); // this is required here so that complete sequence has been copied to shared memory
+    item.barrier(sycl::access::fence_space::local_space); // this is required here so that complete sequence has been copied to shared memory
+
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
     short thread_max_i = 0; // to maintain the DP coordinate i for the longer string
@@ -242,16 +269,6 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
     short _prev_H = 0, _prev_F = 0, _prev_E = 0;
     short _prev_prev_H = 0, _prev_prev_F = 0, _prev_prev_E = 0;
     short _temp_Val = 0;
-
-    __shared__ short sh_prev_E[32]; // one such element is required per warp
-    __shared__ short sh_prev_H[32];
-    __shared__ short sh_prev_prev_H[32];
-
-    __shared__ short local_spill_prev_E[1024];// each threads local spill,
-    __shared__ short local_spill_prev_H[1024];
-    __shared__ short local_spill_prev_prev_H[1024];
-
-    __syncthreads(); // to make sure all shmem allocations have been initialized
 
     for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
     {
@@ -287,15 +304,19 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
             local_spill_prev_H[thread_Id] = _prev_H;
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
-        __syncthreads(); // this is needed so that all the shmem writes are completed.
 
-        if(is_valid[thread_Id] && thread_Id < minSize){
-            unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
+        item.barrier(sycl::access::fence_space::local_space); // this is needed so that all the shmem writes are completed.
+
+        if(is_valid[thread_Id] && thread_Id < minSize)
+        {
+            auto sg = item.get_sub_group();
+            // unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
 
             short fVal = _prev_F + extendGap;
             short hfVal = _prev_H + startGap;
-            short valeShfl = __shfl_sync(mask, _prev_E, laneId- 1, 32);
-            short valheShfl = __shfl_sync(mask, _prev_H, laneId - 1, 32);
+
+            short valeShfl = sg.shuffle(_prev_E, laneId - 1);   //__shfl_sync(mask, _prev_E, laneId- 1, 32);
+            short valheShfl =  sg.shuffle(_prev_H, laneId - 1); //__shfl_sync(mask, _prev_H, laneId - 1, 32);
 
             short eVal=0, heVal = 0;
 
@@ -318,12 +339,16 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 
             _curr_F = (fVal > hfVal) ? fVal : hfVal;
             _curr_E = (eVal > heVal) ? eVal : heVal;
-            short testShufll = __shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
+        
+            short testShufll = sg.shuffle(_prev_prev_H, laneId - 1); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
             short final_prev_prev_H = 0;
 
-            if(diag >= maxSize){
+            if(diag >= maxSize)
+            {
                 final_prev_prev_H = local_spill_prev_prev_H[thread_Id - 1];
-            }else{
+            }
+            else
+            {
                 final_prev_prev_H =(warpId !=0 && laneId == 0)?sh_prev_prev_H[warpId-1]:testShufll;
             }
 
@@ -340,10 +365,13 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
             thread_max   = (thread_max >= _curr_H) ? thread_max : _curr_H;
             i++;
         }
-        __syncthreads(); // why do I need this? commenting it out breaks it
+
+        item.barrier(sycl::access::fence_space::local_space);// why do I need this? commenting it out breaks it
     }
-    __syncthreads();
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,minSize, reverse);  // thread 0 will have the correct values
+
+    item.barrier(sycl::access::fence_space::local_space);
+
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {
@@ -381,15 +409,33 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
     }
 }
 
-__global__ void
+// ------------------------------------------------------------------------------------ //
+
+SYCL_EXTERNAL void
 kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                                         unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix)
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, 
+                                        sycl::nd_item<3> &item, 
+                                        char *is_valid_array,
+                                        short *sh_prev_E,
+                                        short *sh_prev_H,
+                                        short *sh_prev_prev_H,
+                                        short *local_spill_prev_E,
+                                        short *local_spill_prev_H,
+                                        short *local_spill_prev_prev_H,
+                                        short *sh_aa_encoding, 
+                                        short *sh_aa_scoring,
+                                        short *locTots,
+                                        short *locInds,
+                                        short *locInds2)
 {
-    int block_Id  = blockIdx.x;
-    int thread_Id = threadIdx.x;
-    short laneId = threadIdx.x%32;
-    short warpId = threadIdx.x/32;
+
+    auto sg = item.get_sub_group();
+
+    int block_Id  = item.get_group(0);
+    int thread_Id = item.get_local_id(0);
+    short laneId = sg.get_local_id();
+    short warpId = sg.get_group_id();
 
     unsigned lengthSeqA;
     unsigned lengthSeqB;
@@ -399,7 +445,6 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
     char*    seqB;
     char* longer_seq;
 
-    extern __shared__ char is_valid_array[];
     char*                  is_valid = &is_valid_array[0];
 
     // setting up block local sequences and their lengths.
@@ -444,32 +489,22 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
         longer_seq = seqA;
     }
 
-    __syncthreads(); // this is required here so that complete sequence has been copied to shared memory
+    item.barrier(sycl::access::fence_space::local_space); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
     short thread_max_i = 0; // to maintain the DP coordinate i for the longer string
     short thread_max_j = 0;// to maintain the DP cooirdinate j for the shorter string
 
-//initializing registers for storing diagonal values for three recent most diagonals (separate tables for
-//H, E and F)
+    //initializing registers for storing diagonal values for three recent most diagonals (separate tables for
+    //H, E and F)
+
     short _curr_H = 0, _curr_F = 0, _curr_E = 0;
     short _prev_H = 0, _prev_F = 0, _prev_E = 0;
     short _prev_prev_H = 0, _prev_prev_F = 0, _prev_prev_E = 0;
     short _temp_Val = 0;
 
-    __shared__ short sh_prev_E[32]; // one such element is required per warp
-    __shared__ short sh_prev_H[32];
-    __shared__ short sh_prev_prev_H[32];
-
-    __shared__ short local_spill_prev_E[1024];// each threads local spill,
-    __shared__ short local_spill_prev_H[1024];
-    __shared__ short local_spill_prev_prev_H[1024];
-
-    __shared__ short sh_aa_encoding[ENCOD_MAT_SIZE];// length = 91
-    __shared__ short sh_aa_scoring[SCORE_MAT_SIZE];
-
-    int max_threads = blockDim.x;
+    int max_threads = item.get_local_range(0);
     
     for(int p = thread_Id; p < SCORE_MAT_SIZE; p+=max_threads)
         sh_aa_scoring[p] = scoring_matrix[p];
@@ -477,7 +512,7 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
     for(int p = thread_Id; p < ENCOD_MAT_SIZE; p+=max_threads)
     sh_aa_encoding[p] = encoding_matrix[p];
 
-    __syncthreads(); // to make sure all shmem allocations have been initialized
+    item.barrier(sycl::access::fence_space::local_space); // to make sure all shmem allocations have been initialized
 
     for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
     {
@@ -519,16 +554,18 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        __syncthreads(); // this is needed so that all the shmem writes are completed.
+        item.barrier(sycl::access::fence_space::local_space); // this is needed so that all the shmem writes are completed.
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
-            unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
+            auto sg = item.get_sub_group();
 
             short fVal = _prev_F + extendGap;
             short hfVal = _prev_H + startGap;
-            short valeShfl = __shfl_sync(mask, _prev_E, laneId- 1, 32);
-            short valheShfl = __shfl_sync(mask, _prev_H, laneId - 1, 32);
+
+            short valeShfl = sg.shuffle(_prev_E, laneId- 1);
+
+            short valheShfl = sg.shuffle(_prev_H, laneId - 1);
 
             short eVal=0, heVal = 0;
 
@@ -552,7 +589,8 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
             _curr_F = (fVal > hfVal) ? fVal : hfVal;
             _curr_E = (eVal > heVal) ? eVal : heVal;
 
-            short testShufll = __shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
+            short testShufll = sg.shuffle(_prev_prev_H, laneId - 1);
+
             short final_prev_prev_H = 0;
             
             if(diag >= maxSize)
@@ -581,14 +619,14 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
             i++;
         }
 
-        __syncthreads(); // why do I need this? commenting it out breaks it
+        item.barrier(sycl::access::fence_space::local_space); // why do I need this? commenting it out breaks it
 
     }
 
-    __syncthreads();
+    item.barrier(sycl::access::fence_space::local_space);
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,
-                                                                    minSize, false);  // thread 0 will have the correct values
+                                                                    minSize, false, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(thread_Id == 0)
     {
@@ -607,16 +645,23 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
     }
 }
 
+// ------------------------------------------------------------------------------------ //
+
 /*
-__global__ void
+SYCL_EXTERNAL void
 kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                                         unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix){
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix)
+{
 
-            int block_Id  = blockIdx.x;
-            int thread_Id = threadIdx.x;
-            short laneId = threadIdx.x%32;
-            short warpId = threadIdx.x/32;
+            auto sg = item.get_sub_group();
+
+            int block_Id  = item.get_group(0);
+            int thread_Id = item.get_local_id(0);
+
+            short laneId = sg.get_local_id();
+            short warpId = sg.get_group_id();
+
             // local pointers
             char*    seqA;
             char*    seqB;
@@ -647,7 +692,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
             memset(is_valid, 1, minSize);
             is_valid += minSize;
             memset(is_valid, 0, minSize);
-            __syncthreads(); // this is required because shmem writes
+            item.barrier(sycl::access::fence_space::local_space); // this is required because shmem writes
 
     //check if the new length of A is larger than B, if so then place the B string in registers and A in myLocString, make sure we dont do redundant copy by checking which string is located in myLocString before
 
@@ -669,7 +714,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
             }
 
 
-            __syncthreads(); // this is required  because sequence has been re-written in shmem
+            item.barrier(sycl::access::fence_space::local_space); // this is required  because sequence has been re-written in shmem
 
 
             int   i            = 1;
@@ -695,7 +740,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
          __shared__ short sh_aa_encoding[ENCOD_MAT_SIZE];// length = 91
          __shared__ short sh_aa_scoring[SCORE_MAT_SIZE];
 
-         int max_threads = blockDim.x;
+         int max_threads = item.get_local_range(0);
 
          for(int p = thread_Id; p < SCORE_MAT_SIZE; p+=max_threads){
              sh_aa_scoring[p] = scoring_matrix[p];
@@ -705,7 +750,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
          }
 
 
-            __syncthreads(); // this is required because shmem has been updated
+            item.barrier(sycl::access::fence_space::local_space); // this is required because shmem has been updated
             for(int diag = 0; diag <  newlengthSeqA + newlengthSeqB - 1; diag++)
             {
                 is_valid = is_valid - (diag < minSize || diag >= maxSize);
@@ -744,7 +789,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
                     local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
                 }
 
-                __syncthreads();
+                item.barrier(sycl::access::fence_space::local_space);
 
                 if(is_valid[thread_Id] && thread_Id < minSize)
                 {
@@ -812,10 +857,10 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
                         i++;
 
                 }
-                    __syncthreads();
+                    item.barrier(sycl::access::fence_space::local_space);
 
                 }
-                __syncthreads();
+                item.barrier(sycl::access::fence_space::local_space);
 
 
 
@@ -835,7 +880,7 @@ kernel::sequence_aa_reverse(char* seqA_array, char* seqB_array, unsigned* prefix
                         seqB_align_begin[block_Id] = (thread_max_j);
                     }
                 }
-                __syncthreads();
+                item.barrier(sycl::access::fence_space::local_space);
 
 }
 */
