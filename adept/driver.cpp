@@ -377,15 +377,15 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
             item,
             dyn_shmem.get_pointer(),
-            locTots.get_pointer(), 
-            locInds.get_pointer(), 
-            locInds2.get_pointer(), 
             sh_prev_E.get_pointer(), 
             sh_prev_H.get_pointer(), 
             sh_prev_prev_H.get_pointer(), 
             local_spill_prev_E.get_pointer(), 
             local_spill_prev_H.get_pointer(), 
-            local_spill_prev_prev_H.get_pointer()
+            local_spill_prev_prev_H.get_pointer(),
+            locTots.get_pointer(), 
+            locInds.get_pointer(), 
+            locInds2.get_pointer()
             );
         });
     });
