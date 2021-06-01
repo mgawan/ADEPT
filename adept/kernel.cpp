@@ -111,13 +111,13 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     if(laneId == 0)
         locInds2[warpId] = myInd2;
     
-    unsigned check = ((32 + item.get_local_range(0) - 1) / 32);  // mimicing the ceil function for floats
+    int check = ((32 + item.get_local_range(0) - 1) / 32);  // mimicing the ceil function for floats
                                                                              // float check = ((float)item.get_local_range(0) / 32);
-    if(item.get_local_id(0) < check)  /////******//////
+    if(laneId < check)  /////******//////
     {
-        myVal  = locTots[item.get_local_id(0)];
-        myInd  = locInds[item.get_local_id(0)];
-        myInd2 = locInds2[item.get_local_id(0)];
+        myVal  = locTots[laneId];
+        myInd  = locInds[laneId];
+        myInd2 = locInds2[laneId];
     }
     else
     {
