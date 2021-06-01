@@ -10,6 +10,7 @@ Committing the working ADEPT SYCL code tested on ***Intel(R) UHD Graphics P630**
 - Changed the name of kernel namespace to Akernel to avoid the mix with the class kernel defined in `<cl/sycl.hpp>`
 
 ## What still needs to be done?
+- ***FIXED***: Fix the race condition in the starting position computation for both query and ref computed by the reverse kernel. 
 - The max block size needs to be looked into to handle queries >256
 - The driver class needs massive revamping into at least `C++-17` (required by SYCL) style. For instance, there is no need to explicitly pass the member variables as arguments in the member functions of the driver class. This creates a big overhead.
 - We may need to switch to the buffer/accessor model to avoid the need to explicitly manage memory on both the host and device?
