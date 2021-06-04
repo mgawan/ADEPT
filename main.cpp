@@ -32,12 +32,12 @@
 
 // constants
 const int MAX_REF_LEN    =  1200;
-const int MAX_QUERY_LEN  =   250;
+const int MAX_QUERY_LEN  =   256;
 const int BATCH_SIZE     = 30000;
 const int GPU_ID         =     0;
 
 // scores
-const short MATCH          = 3;
+const short MATCH          =  3;
 const short MISMATCH       = -3;
 const short GAP_OPEN       = -6;
 const short GAP_EXTEND     = -1;

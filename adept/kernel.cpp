@@ -103,6 +103,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
     int threadId = item.get_local_linear_id();
+    int blockSize = item.get_local_range(0);
 
     short myInd  = myIndex;
     short myInd2 = myIndex2;
@@ -118,10 +119,13 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     if(laneId == 0)
         locInds2[warpId] = myInd2;
 
-    int blockSize = item.get_local_range(0);
+    item.barrier(sycl::access::fence_space::local_space);
 
-    int check = ((warpSize + blockSize - 1) / warpSize);  // mimicing the ceil function for floats
-                                                          // float check = ((float)item.get_local_range(0) / 32);
+    int check = (warpSize + blockSize - 1) / warpSize;  // mimicing the ceil function for floats
+                                                        // float check = ((float)item.get_local_range(0) / 32);
+
+    // check -1 to adjust for odd blockSize
+    check = (blockSize % 2 ==0)? check: check -1;
 
     if(threadId < check)  /////******//////
     {
@@ -135,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd  = -1;
         myInd2 = -1;
     }
-    
+
     item.barrier(sycl::access::fence_space::local_space);
 
     if(warpId == 0)
@@ -190,7 +194,6 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
-    short blockSize = item.get_local_range(0);
 
     int lengthSeqA;
     int lengthSeqB;
@@ -305,7 +308,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         _prev_prev_F = _temp_Val;
         _curr_F = 0;
 
-        if(laneId == 31){ // if you are the last thread in your warp then spill your values to shmem
+        if(laneId == warpSize - 1){ // if you are the last thread in your warp then spill your values to shmem
             sh_prev_E[warpId] = _prev_E;
             sh_prev_H[warpId] = _prev_H;
             sh_prev_prev_H[warpId] = _prev_prev_H;
@@ -449,6 +452,8 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
 
+    int warpSize = sg.get_local_range()[0];
+
     int lengthSeqA;
     int lengthSeqB;
     
@@ -550,7 +555,7 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
         _prev_prev_F = _temp_Val;
         _curr_F = 0;
 
-        if(laneId == 31)
+        if(laneId == warpSize - 1)
         { 
             // if you are the last thread in your warp then spill your values to shmem
             sh_prev_E[warpId] = _prev_E;
@@ -570,8 +575,6 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
-            auto sg = item.get_sub_group();
-
             short fVal = _prev_F + extendGap;
             short hfVal = _prev_H + startGap;
 
