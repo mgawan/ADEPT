@@ -66,7 +66,8 @@ for i in $(seq 1 $R); do
     if [ "$DIFF" == "" ]; then
         printf "\nSUCCESS\n"
     else
-        echo "$DIFF"
+        echo "FAILED. Check $PWD/../test-data/dna-output$i.diff"
+        echo "$DIFF" >> ../test-data/dna-output$i.diff
     fi
 
     echo "Removing $i" ; rm ../test-data/dna-output-$i.out ;
