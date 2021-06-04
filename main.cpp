@@ -37,7 +37,7 @@ const int BATCH_SIZE     = 30000;
 const int GPU_ID         =     0;
 
 // scores
-const short MATCH          = 3;
+const short MATCH          =  3;
 const short MISMATCH       = -3;
 const short GAP_OPEN       = -6;
 const short GAP_EXTEND     = -1;
