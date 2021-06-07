@@ -32,6 +32,11 @@ using namespace ADEPT;
 
 // ------------------------------------------------------------------------------------ //
 
+/* This is the class used to name the kernel for the runtime.
+ * This must be done when the kernel is expressed as a lambda. */
+class Adept_F;
+class Adept_R;
+
 int 
 getMaxLength (std::vector<std::string> v)
 {
@@ -263,7 +268,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         auto gap_extend_loc = gap_extend;
 
         // TODO: Check the nd_range
-        h.parallel_for(sycl::nd_range<1>(total_alignments * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(32)]]
+        h.parallel_for<class Adept_R>(sycl::nd_range<1>(total_alignments * minSize, minSize), [=](sycl::nd_item<1> item)
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, false, 
             item, 
@@ -372,7 +377,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         //
         // DNA kernel
         //
-        h.parallel_for(sycl::nd_range<1>(total_alignments * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(32)]]
+        h.parallel_for<class Adept_F>(sycl::nd_range<1>(total_alignments * new_length, new_length), [=](sycl::nd_item<1> item)
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
             item,
