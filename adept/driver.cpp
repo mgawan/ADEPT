@@ -1,7 +1,5 @@
 #include "kernel.hpp"
 #include "driver.hpp"
-#include <thread>
-#include <functional>
 
 #define cudaErrchk(ans)                                                                  \
 {                                                                                    \
@@ -41,8 +39,7 @@ struct ADEPT::adept_stream{
 	}
 };
 
-
-void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id){
+void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size,  int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
@@ -73,8 +70,9 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 }
 
 void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset){
-	if(ref_seqs.size() != batch_size)
-		std::cerr << "INITIALIZATION ERROR: driver was initialized with wrong number of alignments\n";
+	if(ref_seqs.size() < batch_size)
+		batch_size = ref_seqs.size();
+	//	std::cerr << "INITIALIZATION ERROR: driver was initialized with wrong number of alignments\n";
 	//preparing offsets 
 	unsigned running_sum = 0;
 	for(int i = 0; i < batch_size; i++){
@@ -247,88 +245,12 @@ void driver::dth_synch(){
 	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
 }
 
- aln_results driver::launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
-	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
-	int dev_count;
-	cudaGetDeviceCount(&dev_count);
-	if(num_gpus < dev_count){
-		std::cout<<"WARNING: using "<<num_gpus<<" out of "<< dev_count<<" available GPUs\n";
-	}else if(num_gpus > dev_count){
-		std::cerr<<"only "<<dev_count<<" GPUs available, cannot use more than available GPUs. \n";
-		exit(1);
-	}else{
-		std::cout<<"Using all the available GPUs \n";
-	}
-	
-
-	total_alignments = ref_seqs.size();
-	initialize_alignments(); // init result memory on CPU, results from all the GPUs
-	max_ref_size = _max_ref_size;
-	max_que_size = _max_query_size;
-	unsigned batch_size = get_batch_size(0, max_que_size, max_ref_size, 100);
-	
-	//total_alignments = alns_per_batch;
-	std::cout << "Batch Size:"<< batch_size<<"\n";
-	std::cout << "Total Alignments:"<< total_alignments<<"\n";
-
-	std::vector<std::vector<std::string>> ref_batch_gpu;
-	std::vector<std::vector<std::string>> que_batch_gpu;
-	int alns_per_gpu = ceil((float)total_alignments/num_gpus);
-	int left_over = ref_seqs.size()%num_gpus;
-
-	std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
-
-	for(int i = 0; i < num_gpus ; i++){
-		std::vector<std::string>::const_iterator start_, end_;
-		start_ = ref_seqs.begin() + i * alns_per_gpu;
-		if(i == num_gpus -1)
-			end_ = ref_seqs.end() + (i + 1) * alns_per_gpu + left_over;
-		else
-			end_ = ref_seqs.end() + (i + 1) * alns_per_gpu;
-
-		std::vector<std::string> temp_ref(start_, end_);
-
-		start_ = query_seqs.begin() + i * alns_per_gpu;
-		if(i == num_gpus - 1)
-			end_ = query_seqs.end() + (i + 1) * alns_per_gpu + left_over;
-		else
-			end_ = query_seqs.end() + (i + 1) * alns_per_gpu;
-
-		std::vector<std::string> temp_que(start_, end_);
-
-		ref_batch_gpu.push_back(temp_ref);
-		que_batch_gpu.push_back(temp_que);
-	}
-
-	//ref_batch_gpu[num_gpus - 1].insert(ref_batch_gpu[num_gpus - 1].end(), ref_seqs.begin() + (num_gpus - 1) * alns_per_gpu, ref_seqs.end() + (num_gpus) * alns_per_gpu + left_over);
-	//que_batch_gpu[num_gpus - 1].insert(que_batch_gpu[num_gpus - 1].end(), que_seqs.begin() + (num_gpus - 1) * alns_per_gpu, que_seqs.end() + (num_gpus) * alns_per_gpu + left_over);
-
-	for( int i = 0; i < num_gpus; i++){
-		std::cout <<" Alns on GPU:"<<i<<" are:"<<ref_batch_gpu[i].size()<<"\n";
-	}
-	aln_results global_results;
-	cudaErrchk(cudaMallocHost(&(global_results.ref_begin), sizeof(short)*total_alignments));
-	cudaErrchk(cudaMallocHost(&(global_results.ref_end), sizeof(short)*total_alignments));
-	cudaErrchk(cudaMallocHost(&(global_results.query_begin), sizeof(short)*total_alignments));
-	cudaErrchk(cudaMallocHost(&(global_results.query_end), sizeof(short)*total_alignments));
-	cudaErrchk(cudaMallocHost(&(global_results.top_scores), sizeof(short)*total_alignments));
-
-	std::thread threads[dev_count];
-	for(int i = 0; i < dev_count; i++){
-		threads[i] = std::thread(&driver::thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i, num_gpus, scores);
-	}
-
-	for(int i = 0; i < dev_count; i++){
-		threads[i].join();
-	}
-
-	return global_results;
- }
-
-void driver::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, unsigned per_gpu_alns, aln_results g_results, int dev_id, int num_gpus, short scores[]){
+aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[]){
 	int alns_this_gpu = ref_vec.size();
-	int iterations = ceil((float)alns_this_gpu/batch_size);
+	int iterations = alns_this_gpu/batch_size;
+	if(iterations == 0) iterations = 1;
 	int batch_last_it = alns_this_gpu%batch_size;
+	if(iterations > 1) batch_last_it += batch_size; 
 
 	std::vector<std::vector<std::string>> its_ref_vecs;
 	std::vector<std::vector<std::string>> its_que_vecs;
@@ -337,17 +259,17 @@ void driver::thread_launch(std::vector<std::string> ref_vec, std::vector<std::st
 		std::vector<std::string>::const_iterator start_, end_;
 		start_ = ref_vec.begin() + i * batch_size;
 		if(i == iterations -1)
-			end_ = ref_vec.end() + (i + 1) * batch_size + batch_last_it;
+			end_ = ref_vec.begin() + i * batch_size + batch_last_it;
 		else
-			end_ = ref_vec.end() + (i + 1) * batch_size;
+			end_ = ref_vec.begin() + (i + 1) * batch_size;
 
 		std::vector<std::string> temp_ref(start_, end_);
 
 		start_ = que_vec.begin() + i * batch_size;
-		if(i == num_gpus - 1)
-			end_ = que_vec.end() + (i + 1) * batch_size + batch_last_it;
+		if(i == iterations - 1)
+			end_ = que_vec.begin() + i * batch_size + batch_last_it;
 		else
-			end_ = que_vec.end() + (i + 1) * batch_size;
+			end_ = que_vec.begin() + (i + 1) * batch_size;
 
 		std::vector<std::string> temp_que(start_, end_);
 
@@ -367,15 +289,205 @@ void driver::thread_launch(std::vector<std::string> ref_vec, std::vector<std::st
 	}
 
 	auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
-	for(int i = 0; i < alns_this_gpu; i++){
-		g_results.top_scores[dev_id*per_gpu_alns + i] = loc_results.top_scores[i];
-		g_results.ref_begin[dev_id*per_gpu_alns + i] = loc_results.ref_begin[i];
-		g_results.ref_end[dev_id*per_gpu_alns + i] = loc_results.ref_end[i];
-		g_results.query_begin[dev_id*per_gpu_alns + i] = loc_results.query_begin[i];
-		g_results.query_end[dev_id*per_gpu_alns + i] = loc_results.query_end[i];
-	}
+	// for(int i = 0; i < alns_this_gpu; i++){
+	// 	g_results.top_scores[dev_id*per_gpu_alns + i] = loc_results.top_scores[i];
+	// 	g_results.ref_begin[dev_id*per_gpu_alns + i] = loc_results.ref_begin[i];
+	// 	g_results.ref_end[dev_id*per_gpu_alns + i] = loc_results.ref_end[i];
+	// 	g_results.query_begin[dev_id*per_gpu_alns + i] = loc_results.query_begin[i];
+	// 	g_results.query_end[dev_id*per_gpu_alns + i] = loc_results.query_end[i];
+	// }
 
-	sw_driver_loc.cleanup();
-  	sw_driver_loc.free_results();
-	//return g_results;
+	//sw_driver_loc.cleanup();
+  //	sw_driver_loc.free_results();
+	return loc_results;
  }
+
+all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size_, short scores[]){
+	int total_alignments = ref_sequences.size();
+  	int num_gpus;
+	cudaGetDeviceCount(&num_gpus);
+	unsigned batch_size = batch_size_;//get_batch_size(0, max_que_size, max_ref_size, 100);// batch size per GPU
+	
+	//total_alignments = alns_per_batch;
+	std::cout << "Batch Size:"<< batch_size<<"\n";
+	std::cout << "Total Alignments:"<< total_alignments<<"\n";
+    std::cout << "Total devices:"<< num_gpus<<"\n";
+
+	std::vector<std::vector<std::string>> ref_batch_gpu;
+	std::vector<std::vector<std::string>> que_batch_gpu;
+	int alns_per_gpu = total_alignments/num_gpus;
+	int left_over = total_alignments%num_gpus;
+
+	std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
+   // std::array<short, 4> scores = {3,-3,-6,-1};
+
+	for(int i = 0; i < num_gpus ; i++){
+		std::vector<std::string>::const_iterator start_, end_;
+		start_ = ref_sequences.begin() + i * alns_per_gpu;
+		if(i == num_gpus -1)
+			end_ = ref_sequences.begin() + (i + 1) * alns_per_gpu + left_over;
+		else
+			end_ = ref_sequences.begin() + (i + 1) * alns_per_gpu;
+
+		std::vector<std::string> temp_ref(start_, end_);
+
+		start_ = que_sequences.begin() + i * alns_per_gpu;
+		if(i == num_gpus - 1)
+			end_ = que_sequences.begin() + (i + 1) * alns_per_gpu + left_over;
+		else
+			end_ = que_sequences.begin() + (i + 1) * alns_per_gpu;
+
+		std::vector<std::string> temp_que(start_, end_);
+
+		ref_batch_gpu.push_back(temp_ref);
+		que_batch_gpu.push_back(temp_que);
+	}
+  omp_set_num_threads(num_gpus);
+  all_alns global_results(num_gpus);
+  global_results.per_gpu = alns_per_gpu;
+  global_results.left_over = left_over;
+
+  #pragma omp parallel
+  {
+    int my_cpu_id = omp_get_thread_num();
+	std::cout <<"thread:"<<omp_get_thread_num()<<" out of:"<<omp_get_num_threads()<<"\n";
+	global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
+    #pragma omp barrier
+  }
+
+return global_results;
+}
+//  aln_results driver::launch_synch_complete(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int num_gpus){
+// 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
+// 	int dev_count;
+// 	cudaGetDeviceCount(&dev_count);
+// 	if(num_gpus < dev_count){
+// 		std::cout<<"WARNING: using "<<num_gpus<<" out of "<< dev_count<<" available GPUs\n";
+// 	}else if(num_gpus > dev_count){
+// 		std::cerr<<"only "<<dev_count<<" GPUs available, cannot use more than available GPUs. \n";
+// 		exit(1);
+// 	}else{
+// 		std::cout<<"Using all the available GPUs \n";
+// 	}
+	
+
+// 	total_alignments = ref_seqs.size();
+// 	initialize_alignments(); // init result memory on CPU, results from all the GPUs
+// 	max_ref_size = _max_ref_size;
+// 	max_que_size = _max_query_size;
+// 	unsigned batch_size = get_batch_size(0, max_que_size, max_ref_size, 100);// batch size per GPU
+	
+// 	//total_alignments = alns_per_batch;
+// 	std::cout << "Batch Size:"<< batch_size<<"\n";
+// 	std::cout << "Total Alignments:"<< total_alignments<<"\n";
+
+// 	std::vector<std::vector<std::string>> ref_batch_gpu;
+// 	std::vector<std::vector<std::string>> que_batch_gpu;
+// 	int alns_per_gpu = total_alignments/num_gpus;
+// 	int left_over = total_alignments%num_gpus;
+
+// 	std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
+
+// 	for(int i = 0; i < num_gpus ; i++){
+// 		std::vector<std::string>::const_iterator start_, end_;
+// 		start_ = ref_seqs.begin() + i * alns_per_gpu;
+// 		if(i == num_gpus -1)
+// 			end_ = ref_seqs.begin() + (i + 1) * alns_per_gpu + left_over;
+// 		else
+// 			end_ = ref_seqs.begin() + (i + 1) * alns_per_gpu;
+
+// 		std::vector<std::string> temp_ref(start_, end_);
+
+// 		start_ = query_seqs.begin() + i * alns_per_gpu;
+// 		if(i == num_gpus - 1)
+// 			end_ = query_seqs.begin() + (i + 1) * alns_per_gpu + left_over;
+// 		else
+// 			end_ = query_seqs.begin() + (i + 1) * alns_per_gpu;
+
+// 		std::vector<std::string> temp_que(start_, end_);
+
+// 		ref_batch_gpu.push_back(temp_ref);
+// 		que_batch_gpu.push_back(temp_que);
+// 	}
+
+// 	//ref_batch_gpu[num_gpus - 1].insert(ref_batch_gpu[num_gpus - 1].end(), ref_seqs.begin() + (num_gpus - 1) * alns_per_gpu, ref_seqs.end() + (num_gpus) * alns_per_gpu + left_over);
+// 	//que_batch_gpu[num_gpus - 1].insert(que_batch_gpu[num_gpus - 1].end(), que_seqs.begin() + (num_gpus - 1) * alns_per_gpu, que_seqs.end() + (num_gpus) * alns_per_gpu + left_over);
+
+// 	for( int i = 0; i < num_gpus; i++){
+// 		std::cout <<" Alns on GPU:"<<i<<" are:"<<ref_batch_gpu[i].size()<<"\n";
+// 	}
+// 	aln_results global_results;
+// 	cudaErrchk(cudaMallocHost(&(global_results.ref_begin), sizeof(short)*total_alignments));
+// 	cudaErrchk(cudaMallocHost(&(global_results.ref_end), sizeof(short)*total_alignments));
+// 	cudaErrchk(cudaMallocHost(&(global_results.query_begin), sizeof(short)*total_alignments));
+// 	cudaErrchk(cudaMallocHost(&(global_results.query_end), sizeof(short)*total_alignments));
+// 	cudaErrchk(cudaMallocHost(&(global_results.top_scores), sizeof(short)*total_alignments));
+
+// 	std::thread threads[dev_count];
+// 	for(int i = 0; i < dev_count; i++){
+// 		threads[i] = std::thread(&driver::thread_launch, ref_batch_gpu[i], que_batch_gpu[i], alns_per_gpu, global_results, i, num_gpus, scores);
+// 	}
+
+// 	for(int i = 0; i < dev_count; i++){
+// 		threads[i].join();
+// 	}
+
+// 	return global_results;
+//  }
+
+// void driver::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, unsigned per_gpu_alns, aln_results g_results, int dev_id, int num_gpus, short scores[]){
+// 	int alns_this_gpu = ref_vec.size();
+// 	int iterations = alns_this_gpu/batch_size;
+// 	if(iterations == 0) iterations = 1;
+// 	int batch_last_it = alns_this_gpu%batch_size;
+// 	if(iterations > 1) batch_last_it += batch_size; 
+
+// 	std::vector<std::vector<std::string>> its_ref_vecs;
+// 	std::vector<std::vector<std::string>> its_que_vecs;
+
+// 	for(int i = 0; i < iterations ; i++){
+// 		std::vector<std::string>::const_iterator start_, end_;
+// 		start_ = ref_vec.begin() + i * batch_size;
+// 		if(i == iterations -1)
+// 			end_ = ref_vec.begin() + i * batch_size + batch_last_it;
+// 		else
+// 			end_ = ref_vec.begin() + (i + 1) * batch_size;
+
+// 		std::vector<std::string> temp_ref(start_, end_);
+
+// 		start_ = que_vec.begin() + i * batch_size;
+// 		if(i == num_gpus - 1)
+// 			end_ = que_vec.begin() + i * batch_size + batch_last_it;
+// 		else
+// 			end_ = que_vec.begin() + (i + 1) * batch_size;
+
+// 		std::vector<std::string> temp_que(start_, end_);
+
+// 		its_ref_vecs.push_back(temp_ref);
+// 		its_que_vecs.push_back(temp_que);
+// 	}
+
+// 	for(int i = 0; i < iterations; i++)
+// 		std::cout<<"alns in iteration:"<<i<<" are:"<<its_ref_vecs[i].size()<<"\n";
+
+// 	driver sw_driver_loc;
+// 	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
+// 	for(int i = 0; i < iterations; i++){
+// 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
+// 		sw_driver_loc.mem_cpy_dth(i * batch_size);
+// 		sw_driver_loc.dth_synch();
+// 	}
+
+// 	auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
+// 	for(int i = 0; i < alns_this_gpu; i++){
+// 		g_results.top_scores[dev_id*per_gpu_alns + i] = loc_results.top_scores[i];
+// 		g_results.ref_begin[dev_id*per_gpu_alns + i] = loc_results.ref_begin[i];
+// 		g_results.ref_end[dev_id*per_gpu_alns + i] = loc_results.ref_end[i];
+// 		g_results.query_begin[dev_id*per_gpu_alns + i] = loc_results.query_begin[i];
+// 		g_results.query_end[dev_id*per_gpu_alns + i] = loc_results.query_end[i];
+// 	}
+
+// 	sw_driver_loc.cleanup();
+//   	sw_driver_loc.free_results();
+// 	//return g_results;
+//  }
