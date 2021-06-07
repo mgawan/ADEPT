@@ -32,7 +32,6 @@ using namespace sycl;
 SYCL_EXTERNAL inline short 
 Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item)
 {
-        int   warpSize = 32;
         short myMax    = val;
         short newInd   = 0;
         short newInd2  = 0;
@@ -40,12 +39,17 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
         short ind2     = myIndex2;
 
         auto sg = item.get_sub_group();
+        int warpSize = sg.get_local_range()[0];
 
         // unsigned mask  = __ballot_sync(0xffffffff, item.get_local_id(0) < lengthSeqB);  // item.get_local_range().get(2)
 
+        int rem = warpSize;
         // unsigned newmask;
-        for(int offset = warpSize / 2; offset > 0; offset /= 2)
+
+        for(int offset = rem/2; rem > 0; offset = sycl::max(1, rem/2))
         {
+            rem -=offset;
+
             int tempVal = sg.shuffle_down(val, offset);
 
             val = sycl::max(static_cast<int>(val), tempVal);
@@ -53,7 +57,7 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
             newInd  = sg.shuffle_down(ind, offset);
             newInd2 = sg.shuffle_down(ind2, offset);
 
-            if(val != myMax)
+            if(val > myMax)
             {
                 ind   = newInd;
                 ind2  = newInd2;
@@ -93,31 +97,41 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
 SYCL_EXTERNAL short
 Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
 {
-    auto sg            = item.get_sub_group();
+    auto sg      = item.get_sub_group();
+    int warpSize = sg.get_local_range()[0];
 
-    short              laneId = sg.get_local_id();
-    short              warpId = sg.get_group_id();
+    short laneId = sg.get_local_id();
+    short warpId = sg.get_group_id();
+    int threadId = item.get_local_linear_id();
+    int blockSize = item.get_local_range(0);
 
-    short            myInd  = myIndex;
-    short            myInd2 = myIndex2;
-    myVal                   = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
+    short myInd  = myIndex;
+    short myInd2 = myIndex2;
+
+    myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
 
     item.barrier(sycl::access::fence_space::local_space);
-    
+
     if(laneId == 0)
         locTots[warpId] = myVal;
     if(laneId == 0)
         locInds[warpId] = myInd;
     if(laneId == 0)
         locInds2[warpId] = myInd2;
-    
-    unsigned check = ((32 + item.get_local_range(0) - 1) / 32);  // mimicing the ceil function for floats
-                                                                             // float check = ((float)item.get_local_range(0) / 32);
-    if(item.get_local_id(0) < check)  /////******//////
+
+    item.barrier(sycl::access::fence_space::local_space);
+
+    int check = (warpSize + blockSize - 1) / warpSize;  // mimicing the ceil function for floats
+                                                        // float check = ((float)item.get_local_range(0) / 32);
+
+    // check -1 to adjust for odd blockSize
+    check = (blockSize % 2 ==0)? check: check -1;
+
+    if(threadId < check)  /////******//////
     {
-        myVal  = locTots[item.get_local_id(0)];
-        myInd  = locInds[item.get_local_id(0)];
-        myInd2 = locInds2[item.get_local_id(0)];
+        myVal  = locTots[threadId];
+        myInd  = locInds[threadId];
+        myInd2 = locInds2[threadId];
     }
     else
     {
@@ -125,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd  = -1;
         myInd2 = -1;
     }
-    
+
     item.barrier(sycl::access::fence_space::local_space);
 
     if(warpId == 0)
@@ -174,9 +188,9 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                     short *locInds2)
 {
     auto sg = item.get_sub_group();
-
-    int block_Id  = item.get_group(0);
-    int thread_Id = item.get_local_id(0);
+    int warpSize = sg.get_local_range()[0];
+    int block_Id  = item.get_group_linear_id();
+    int thread_Id = item.get_local_linear_id();
 
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
@@ -189,7 +203,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     char*    seqB;
     char* is_valid = &is_valid_array[0];
     char* longer_seq;
-    
+
     // setting up block local sequences and their lengths.
     if(block_Id == 0){
             lengthSeqA = prefix_lengthA[0];
@@ -209,24 +223,25 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         lengthSeqA = seqA_align_end[block_Id];
         lengthSeqB = seqB_align_end[block_Id];
     }
-    
+
     int maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
     int minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
 
-    for(int p = thread_Id; p < minSize; p+=32)
+    for(int p = thread_Id; p < minSize; p+=warpSize)
     {
         is_valid[p] = 0;
     }
 
     is_valid += minSize;
 
-    for(int p = thread_Id; p < minSize; p+=32)
+    for(int p = thread_Id; p < minSize; p+=warpSize)
     {
         is_valid[p] = 1;
     }
 
     is_valid += minSize;
-    for(int p = thread_Id; p < minSize; p+=32){
+
+    for(int p = thread_Id; p < minSize; p+=warpSize){
         is_valid[p] = 0;
     }
 
@@ -293,7 +308,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         _prev_prev_F = _temp_Val;
         _curr_F = 0;
 
-        if(laneId == 31){ // if you are the last thread in your warp then spill your values to shmem
+        if(laneId == warpSize - 1){ // if you are the last thread in your warp then spill your values to shmem
             sh_prev_E[warpId] = _prev_E;
             sh_prev_H[warpId] = _prev_H;
             sh_prev_prev_H[warpId] = _prev_prev_H;
@@ -432,10 +447,12 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
 
     auto sg = item.get_sub_group();
 
-    int block_Id  = item.get_group(0);
-    int thread_Id = item.get_local_id(0);
+    int block_Id  = item.get_group_linear_id();
+    int thread_Id = item.get_local_linear_id();
     short laneId = sg.get_local_id();
     short warpId = sg.get_group_id();
+
+    int warpSize = sg.get_local_range()[0];
 
     int lengthSeqA;
     int lengthSeqB;
@@ -538,7 +555,7 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
         _prev_prev_F = _temp_Val;
         _curr_F = 0;
 
-        if(laneId == 31)
+        if(laneId == warpSize - 1)
         { 
             // if you are the last thread in your warp then spill your values to shmem
             sh_prev_E[warpId] = _prev_E;
@@ -558,8 +575,6 @@ Akernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_leng
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
-            auto sg = item.get_sub_group();
-
             short fVal = _prev_F + extendGap;
             short hfVal = _prev_H + startGap;
 

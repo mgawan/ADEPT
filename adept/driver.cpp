@@ -110,20 +110,20 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     max_que_size = _max_query_size;
 
     //host pinned memory for offsets - memory pinning not explicit in SYCL (impl def)
-    offset_ref = static_cast<int *> (sycl::malloc_host<int>(total_alignments * sizeof(int), curr_stream->stream));
-    offset_que = static_cast<int *> (sycl::malloc_host<int>(total_alignments * sizeof(int), curr_stream->stream));
+    offset_ref = sycl::malloc_host<int>(total_alignments, curr_stream->stream);
+    offset_que = sycl::malloc_host<int>(total_alignments, curr_stream->stream);
 
 
     //host pinned memory for sequences - memory pinning not explicit in SYCL (impl def)
-    ref_cstr = static_cast<char *> (sycl::malloc_host<char>(sizeof(char) * max_ref_size * total_alignments, curr_stream->stream));
-    que_cstr = static_cast<char *> (sycl::malloc_host<char>(sizeof(char) * max_que_size * total_alignments, curr_stream->stream));
+    ref_cstr = sycl::malloc_host<char>(max_ref_size * total_alignments, curr_stream->stream);
+    que_cstr = sycl::malloc_host<char>(max_que_size * total_alignments, curr_stream->stream);
 
     // host pinned memory for results
     initialize_alignments();
 
     //device memory for sequences
-    ref_cstr_d = static_cast<char *> (sycl::malloc_device<char>(sizeof(char) * max_ref_size * total_alignments, curr_stream->stream));
-    que_cstr_d = static_cast<char *> (sycl::malloc_device<char>(sizeof(char) * max_que_size * total_alignments, curr_stream->stream));
+    ref_cstr_d = sycl::malloc_device<char>(max_ref_size * total_alignments, curr_stream->stream);
+    que_cstr_d = sycl::malloc_device<char>(max_que_size * total_alignments, curr_stream->stream);
 
     //device memory for offsets and results
     allocate_gpu_mem();
@@ -191,7 +191,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 #endif // __NVCC__ or __CUDACC__
 
     // stream wait for data copy
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     // queue the forward Smith Waterman kernel
     auto f_kernel = curr_stream->stream.submit([&](sycl::handler &h)
@@ -287,7 +287,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     });
 
     // stream wait
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     std::cout << "Forward Kernel: DONE" << std::endl;
 
@@ -295,7 +295,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
 
     // stream wait
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     // new length?
     int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
@@ -396,7 +396,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     });
 
     // stream wait
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     std::cout << "Reverse Kernel: DONE" << std::endl;
 }
@@ -443,7 +443,7 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
 // ------------------------------------------------------------------------------------ //
 
 void 
-driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu)
+driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu, short* alBbeg, short* scores_gpu, short* top_scores_cpu)
 {
     curr_stream->stream.memcpy(alAbeg, ref_start_gpu, total_alignments * sizeof(short));
     curr_stream->stream.memcpy(alBbeg, query_start_gpu, total_alignments * sizeof(short));
@@ -472,11 +472,11 @@ driver::mem_cpy_dth()
 void 
 driver::initialize_alignments()
 {
-    results.ref_begin =   static_cast <short *> (sycl::malloc_host<short> (sizeof(short) * total_alignments, curr_stream->stream));
-    results.ref_end =     static_cast <short *> (sycl::malloc_host<short> (sizeof(short) * total_alignments, curr_stream->stream));
-    results.query_begin = static_cast <short *> (sycl::malloc_host<short> (sizeof(short) * total_alignments, curr_stream->stream));
-    results.query_end =   static_cast <short *> (sycl::malloc_host<short> (sizeof(short) * total_alignments, curr_stream->stream));
-    results.top_scores =  static_cast <short *> (sycl::malloc_host<short> (sizeof(short) * total_alignments, curr_stream->stream));
+    results.ref_begin =   sycl::malloc_host<short> (total_alignments, curr_stream->stream);
+    results.ref_end =     sycl::malloc_host<short> (total_alignments, curr_stream->stream);
+    results.query_begin = sycl::malloc_host<short> (total_alignments, curr_stream->stream);
+    results.query_end =   sycl::malloc_host<short> (total_alignments, curr_stream->stream);
+    results.top_scores =  sycl::malloc_host<short> (total_alignments, curr_stream->stream);
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -514,7 +514,7 @@ driver::cleanup()
 
     dealloc_gpu_mem();
 
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -534,14 +534,13 @@ driver::free_results()
 void 
 driver::allocate_gpu_mem()
 {
-    offset_query_gpu = static_cast<int *> (sycl::malloc_device<int> (total_alignments * sizeof(int), curr_stream->stream));
-    offset_ref_gpu =   static_cast<int *> (sycl::malloc_device<int> (total_alignments * sizeof(int), curr_stream->stream));
-    
-    ref_start_gpu =   static_cast<short *> (sycl::malloc_device<short> (total_alignments * sizeof(short), curr_stream->stream));
-    ref_end_gpu =     static_cast<short *> (sycl::malloc_device<short> (total_alignments * sizeof(short), curr_stream->stream));
-    query_end_gpu =   static_cast<short *> (sycl::malloc_device<short> (total_alignments * sizeof(short), curr_stream->stream));
-    query_start_gpu = static_cast<short *> (sycl::malloc_device<short> (total_alignments * sizeof(short), curr_stream->stream));
-    scores_gpu =      static_cast<short *> (sycl::malloc_device<short> (total_alignments * sizeof(short), curr_stream->stream));
+    offset_query_gpu = sycl::malloc_device<int> (total_alignments, curr_stream->stream);
+    offset_ref_gpu =   sycl::malloc_device<int> (total_alignments, curr_stream->stream);
+    ref_start_gpu =    sycl::malloc_device<short> (total_alignments, curr_stream->stream);
+    ref_end_gpu =      sycl::malloc_device<short> (total_alignments, curr_stream->stream);
+    query_end_gpu =    sycl::malloc_device<short> (total_alignments, curr_stream->stream);
+    query_start_gpu =  sycl::malloc_device<short> (total_alignments, curr_stream->stream);
+    scores_gpu =       sycl::malloc_device<short> (total_alignments, curr_stream->stream);
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -574,7 +573,7 @@ driver::kernel_done()
     else
         return false; */
 
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     return true;
 }
@@ -592,15 +591,15 @@ driver::dth_done()
         return false;
     */
 
-    curr_stream->stream.wait();
+    curr_stream->stream.wait_and_throw();
 
     return true;
 }
 
 // ------------------------------------------------------------------------------------ //
 
-void driver::kernel_synch() { curr_stream->stream.wait(); }
+void driver::kernel_synch() { curr_stream->stream.wait_and_throw(); }
 
 // ------------------------------------------------------------------------------------ //
 
-void driver::dth_synch() { curr_stream->stream.wait(); }
+void driver::dth_synch() { curr_stream->stream.wait_and_throw(); }
