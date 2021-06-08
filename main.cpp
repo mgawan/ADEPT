@@ -55,28 +55,15 @@ int main(int argc, char* argv[]){
     quer_file.close();
   }
 
-	// int total_alignments = ref_sequences.size();
-  // int dev_count;
-	// cudaGetDeviceCount(&dev_count);
-	unsigned batch_size = 50000;//get_batch_size(0, max_que_size, max_ref_size, 100);// batch size per GPU
-	
-	//total_alignments = alns_per_batch;
-	// std::cout << "Batch Size:"<< batch_size<<"\n";
-	// std::cout << "Total Alignments:"<< total_alignments<<"\n";
-  // std::cout << "Total devices:"<< dev_count<<"\n";
 
-	// std::vector<std::vector<std::string>> ref_batch_gpu;
-	// std::vector<std::vector<std::string>> que_batch_gpu;
-	// int alns_per_gpu = total_alignments/num_gpus;
-	// int left_over = total_alignments%num_gpus;
+	unsigned batch_size = 5000;//get_batch_size(0, max_que_size, max_ref_size, 100);// batch size per GPU
 
-	// std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
   std::array<short, 4> scores = {3,-3,-6,-1};
 
- auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, batch_size, scores.data());
- std::cout<<"returning from multi gpu\n";
+ auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), 20000);
+ 
  ofstream results_file(out_file);
- int tot_gpus = 1;
+ int tot_gpus = all_results.gpus;
  for(int gpus = 0; gpus < tot_gpus; gpus++){
    int this_count = all_results.per_gpu;
    if(gpus == tot_gpus - 1) this_count += all_results.left_over;
@@ -85,39 +72,10 @@ int main(int argc, char* argv[]){
     "\t"<<all_results.results[gpus].query_begin[k]<<"\t"<<all_results.results[gpus].query_end[k] - 1<<endl;
   }
   }
-	// for(int i = 0; i < num_gpus ; i++){
-	// 	std::vector<std::string>::const_iterator start_, end_;
-	// 	start_ = ref_seqs.begin() + i * alns_per_gpu;
-	// 	if(i == num_gpus -1)
-	// 		end_ = ref_seqs.begin() + (i + 1) * alns_per_gpu + left_over;
-	// 	else
-	// 		end_ = ref_seqs.begin() + (i + 1) * alns_per_gpu;
 
-	// 	std::vector<std::string> temp_ref(start_, end_);
-
-	// 	start_ = query_seqs.begin() + i * alns_per_gpu;
-	// 	if(i == num_gpus - 1)
-	// 		end_ = query_seqs.begin() + (i + 1) * alns_per_gpu + left_over;
-	// 	else
-	// 		end_ = query_seqs.begin() + (i + 1) * alns_per_gpu;
-
-	// 	std::vector<std::string> temp_que(start_, end_);
-
-	// 	ref_batch_gpu.push_back(temp_ref);
-	// 	que_batch_gpu.push_back(temp_que);
-	// }
-  // omp_set_num_threads(deviceCount);
-  // ADEPT::aln_results global_results[dev_count];
-
-  // #pragma omp parallel
-  // {
-  //   int my_cpu_id = omp_get_thread_num();
-  //   global_results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], batch_size, my_cpu_id, scores.data());
-  //   #pragma omp barrier
-  // }
-
-
-
+  for(int i = 0; i < tot_gpus; i++)
+    all_results.results[i].free_results();
+	
   
 
 
