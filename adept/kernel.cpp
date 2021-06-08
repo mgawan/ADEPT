@@ -205,7 +205,8 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     char* longer_seq;
 
     // setting up block local sequences and their lengths.
-    if(block_Id == 0){
+    if(block_Id == 0)
+    {
             lengthSeqA = prefix_lengthA[0];
             lengthSeqB = prefix_lengthB[0];
             seqA       = seqA_array;
@@ -219,7 +220,8 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             seqB       = seqB_array + prefix_lengthB[block_Id - 1];
     }
 
-    if(reverse == true){
+    if(reverse == true)
+    {
         lengthSeqA = seqA_align_end[block_Id];
         lengthSeqB = seqB_align_end[block_Id];
     }
@@ -308,13 +310,19 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         _prev_prev_F = _temp_Val;
         _curr_F = 0;
 
-        if(laneId == warpSize - 1){ // if you are the last thread in your warp then spill your values to shmem
+        if(laneId == warpSize - 1)
+        { 
+            // if you are the last thread in your warp then spill your values to shmem
+
             sh_prev_E[warpId] = _prev_E;
             sh_prev_H[warpId] = _prev_H;
             sh_prev_prev_H[warpId] = _prev_prev_H;
         }
 
-        if(diag >= maxSize){ // if you are invalid in this iteration, spill your values to shmem
+        if(diag >= maxSize)
+        { 
+            // if you are invalid in this iteration, spill your values to shmem
+
             local_spill_prev_E[thread_Id] = _prev_E;
             local_spill_prev_H[thread_Id] = _prev_H;
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
@@ -322,7 +330,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 
         item.barrier(sycl::access::fence_space::local_space); // this is needed so that all the shmem writes are completed.
 
-        if(is_valid[thread_Id] && thread_Id < minSize)
+        if (is_valid[thread_Id] && thread_Id < minSize)
         {
             auto sg = item.get_sub_group();
             // unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
@@ -347,7 +355,8 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                 heVal =((warpId !=0 && laneId == 0)?sh_prev_H[warpId-1]:valheShfl) + startGap;
             }
              // make sure that values for lane 0 in warp 0 is not undefined
-            if(warpId == 0 && laneId == 0){
+            if(warpId == 0 && laneId == 0)
+            {
                 eVal = 0;
                 heVal = 0;
             }
@@ -379,6 +388,13 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             thread_max_j = (thread_max >= _curr_H) ? thread_max_j : _j;
             thread_max   = (thread_max >= _curr_H) ? thread_max : _curr_H;
             i++;
+        }
+        else
+        {
+            // we need these dummy shuffle operations for NVIDIA GPUs
+            short valeShfl = sg.shuffle(_prev_E, laneId);   //__shfl_sync(mask, _prev_E, laneId- 1, 32);
+            short valheShfl =  sg.shuffle(_prev_H, laneId); //__shfl_sync(mask, _prev_H, laneId - 1, 32);
+            short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
         item.barrier(sycl::access::fence_space::local_space);// why do I need this? commenting it out breaks it
