@@ -280,18 +280,12 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 		its_que_vecs.push_back(temp_que);
 	}
 
-	//for(int i = 0; i < iterations; i++)
-	int my_dev;
-	
-
 	driver sw_driver_loc;
 	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
 		sw_driver_loc.dth_synch();
-		//cudaGetDevice(&my_dev);
-		//std::cout<<"alns in iteration:"<<i<<" are:"<<its_ref_vecs[i].size()<<" thread:"<<my_cpu_id<<" device:"<<my_dev<<"\n";
 	}
 
 	auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
@@ -350,7 +344,6 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
   #pragma omp parallel
   {
     int my_cpu_id = omp_get_thread_num();
-	//std::cout <<"thread:"<<omp_get_thread_num()<<" out of:"<<omp_get_num_threads()<<"\n";
 	global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
     #pragma omp barrier
   }

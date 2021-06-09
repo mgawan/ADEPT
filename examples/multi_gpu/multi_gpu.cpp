@@ -1,4 +1,4 @@
-#include "adept/driver.hpp"
+#include "../../adept/driver.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -57,10 +57,10 @@ int main(int argc, char* argv[]){
 
 
 	unsigned batch_size = ADEPT::get_batch_size(0, 300, 1200, 100);// batch size per GPU
-
+  std::cout<<"batch:"<<batch_size<<"\n";
   std::array<short, 4> scores = {3,-3,-6,-1};
 
- auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), 20000);
+ auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), batch_size);
  
  ofstream results_file(out_file);
  int tot_gpus = all_results.gpus;
@@ -76,29 +76,5 @@ int main(int argc, char* argv[]){
   for(int i = 0; i < tot_gpus; i++)
     all_results.results[i].free_results();
 	
-  
-
-
-  // ADEPT::driver sw_driver;
-  // std::array<short, 4> scores = {3,-3,-6,-1};
-  // sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 30000, 0);
-  // sw_driver.kernel_launch(ref_sequences, que_sequences);
-  // sw_driver.mem_cpy_dth();
-  // sw_driver.dth_synch();
-
-  // auto results = sw_driver.get_alignments();
-
-  // ofstream results_file(out_file);
-  // for(int k = 0; k < ref_sequences.size(); k++){
-  //   results_file<<results.top_scores[k]<<"\t"<<results.ref_begin[k]<<"\t"<<results.ref_end[k] - 1<<
-  //   "\t"<<results.query_begin[k]<<"\t"<<results.query_end[k] - 1<<endl;
-  // }
-
-
-  // sw_driver.cleanup();
-  // sw_driver.free_results();
-  // results_file.flush();
-  // results_file.close();
-
   return 0;
 }
