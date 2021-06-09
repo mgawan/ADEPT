@@ -26,6 +26,7 @@
 #include "kernel.hpp"
 #include "driver.hpp"
 #include <chrono>
+#include "instrument.hpp"
 
 using namespace sycl;
 using namespace ADEPT;
@@ -193,6 +194,9 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // stream wait for data copy
     curr_stream->stream.wait_and_throw();
 
+    // marker for forward kernel
+    MARK_START(fwd_time);
+
     // queue the forward Smith Waterman kernel
     auto f_kernel = curr_stream->stream.submit([&](sycl::handler &h)
     {
@@ -289,7 +293,12 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // stream wait
     curr_stream->stream.wait_and_throw();
 
+    // compute the time from initial marker
+    auto f_kernel_time = ELAPSED_SECONDS_FROM(fwd_time);
+
     std::cout << "Forward Kernel: DONE" << std::endl;
+
+    PRINT_ELAPSED(f_kernel_time);
 
     // copy memory
     mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end);
@@ -299,6 +308,9 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 
     // new length?
     int new_length = get_new_min_length(results.ref_end, results.query_end, total_alignments);
+
+    // marker for reverse kernel
+    MARK_START(rev_time);
 
     // queue the reverse Smith Waterman kernel
     auto r_kernel = curr_stream->stream.submit([&](sycl::handler &h)
@@ -398,7 +410,13 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // stream wait
     curr_stream->stream.wait_and_throw();
 
+    // compute the time from initial marker
+    auto r_kernel_time = ELAPSED_SECONDS_FROM(rev_time);
+
     std::cout << "Reverse Kernel: DONE" << std::endl;
+
+    PRINT_ELAPSED(r_kernel_time);
+
 }
 
 // ------------------------------------------------------------------------------------ //
