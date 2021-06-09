@@ -30,6 +30,9 @@
 using namespace sycl;
 using namespace ADEPT;
 
+// warp size
+static constexpr size_t warpSize = 32;
+
 // ------------------------------------------------------------------------------------ //
 
 int 
@@ -203,32 +206,32 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         // local Totals
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locTots(sycl::range(32), h);
+            locTots(sycl::range(warpSize), h);
 
         // local Indices
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locInds(sycl::range(32), h);
+            locInds(sycl::range(warpSize), h);
 
         // local indices2
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locInds2(sycl::range(32), h);
+            locInds2(sycl::range(warpSize), h);
 
         // sh_prev_E
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_E(sycl::range(32), h);
+            sh_prev_E(sycl::range(warpSize), h);
 
         // sh_prev_H
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_H(sycl::range(32), h);
+            sh_prev_H(sycl::range(warpSize), h);
 
         // sh_prev_prev_H
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_prev_H(sycl::range(32), h);
+            sh_prev_prev_H(sycl::range(warpSize), h);
 
         // local_spill_prev_E
         sycl::accessor<short, 1, sycl::access::mode::read_write,
@@ -263,7 +266,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         auto gap_extend_loc = gap_extend;
 
         // TODO: Check the nd_range
-        h.parallel_for(sycl::nd_range<1>(total_alignments * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(32)]]
+        h.parallel_for(sycl::nd_range<1>(total_alignments * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, false, 
             item, 
@@ -310,32 +313,32 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         // local Totals
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locTots(sycl::range(32), h);
+            locTots(sycl::range(warpSize), h);
 
         // local Indices
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locInds(sycl::range(32), h);
+            locInds(sycl::range(warpSize), h);
 
         // local indices2
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            locInds2(sycl::range(32), h);
+            locInds2(sycl::range(warpSize), h);
 
         // sh_prev_E
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_E(sycl::range(32), h);
+            sh_prev_E(sycl::range(warpSize), h);
 
         // sh_prev_H
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_H(sycl::range(32), h);
+            sh_prev_H(sycl::range(warpSize), h);
 
         // sh_prev_prev_H
         sycl::accessor<short, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
-            sh_prev_prev_H(sycl::range(32), h);
+            sh_prev_prev_H(sycl::range(warpSize), h);
 
         // local_spill_prev_E
         sycl::accessor<short, 1, sycl::access::mode::read_write,
@@ -372,7 +375,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         //
         // DNA kernel
         //
-        h.parallel_for(sycl::nd_range<1>(total_alignments * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(32)]]
+        h.parallel_for(sycl::nd_range<1>(total_alignments * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
             item,
