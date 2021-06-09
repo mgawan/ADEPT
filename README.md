@@ -1,18 +1,38 @@
 # ADEPT SYCL
-[SYCL* 1.2.1](https://www.khronos.org/files/sycl/sycl-121-reference-guide.pdf) + [SYCL 2020 Specifications](https://www.khronos.org/registry/SYCL/specs/sycl-2020/pdf/sycl-2020.pdf) based implementation of the ADEPT software code.
+[SYCL 1.2.1](https://www.khronos.org/files/sycl/sycl-121-reference-guide.pdf) + [SYCL 2020 Specifications](https://www.khronos.org/registry/SYCL/specs/sycl-2020/html/sycl-2020.html) based implementation of the ADEPT software code.    
 
 ## What's New?
-Committing the working ADEPT SYCL code tested on ***Intel(R) UHD Graphics P630***.
+Committing the working ADEPT SYCL code tested on: 
+1. ***Intel(R) UHD Graphics P630***       
+2. ***NVIDIA Tesla V100-SXM2-16GB***       
 
-- Tested with the sample data only (may need more testing for correctness).
-- To CMake with DPC++ compiler use: `cmake .. -DCMAKE_CXX_COMPILER=dpcpp [OTHER OPTIONS]`
-- Currently only tested in `-DCMAKE_BUILD_TYPE=Debug`. Will do Release testing after a few optimizations.
-- Changed the name of kernel namespace to Akernel to avoid the mix with the class kernel defined in `<cl/sycl.hpp>`
+## Build Instructions
 
-## What still needs to be done?
-- ***FIXED***: Fix the race condition in the starting position computation for both query and ref computed by the reverse kernel. 
-- The max block size needs to be looked into to handle queries >256
-- The driver class needs massive revamping into at least `C++-17` (required by SYCL) style. For instance, there is no need to explicitly pass the member variables as arguments in the member functions of the driver class. This creates a big overhead.
-- We may need to switch to the buffer/accessor model to avoid the need to explicitly manage memory on both the host and device?
-- There are almost 20 arguments being passed to the functions in the kernel namespace which is absurd.
-- The `subgroup` (warp) size may need to be set to the optimum value by the compiler depending on the device. We need to remove the hardcoded value 32 and all the operations in the kernel that assume it to be `32`.
+### DevCloud
+- SSH into the login nodes on Intel's oneAPI devcloud.     
+- Switch to a GPU node by running: `qsub -l nodes=1:gpu:ppn=2 -I`    
+
+### Cori
+- Load the following modules on Cori: 
+
+```bash
+module use /global/cfs/cdirs/mpccc/dwdoerf/cori-gpu/modulefiles module load dpc++/12.12.0.0-20201209
+module load cgpu
+module load cuda
+```
+
+### Instructions
+- Use CMake to generate the Makefiles by running the following command: `cmake $ADEPT_PATH -DCMAKE_CXX_COMPILER=<PATH_TO dpcpp|clang++> -DADEPT_GPU=<Intel|NVIDIA> (default: Intel) [OTHER CMAKE OPTIONS]`    
+- Make (and) install the ADEPT by running the following command: `make install -j 8`   
+
+## Test Instructions
+- Navigate to: `cd $ADEPT_PATH/build`   
+- Run on Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 ./test_adept [NUM_ITERATIONS]`    
+- Run on DevCloud: `cd $ADEPT_PATH/build ; ./test_adept [NUM_ITERATIONS]`     
+
+
+## Future Work
+- The max block size needs to be looked into to handle queries > 256 on Intel GPUs   
+- The driver class may be revamped into `C++-17` style. For instance, there is no need to explicitly pass the member variables as arguments in the member functions of the driver class.   
+- We may need to switch to the buffer/accessor model for allocating pinned memory on host + avoid explicit memory management betweenthe host and device    
+- Other optimizations    

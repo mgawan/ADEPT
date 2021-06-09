@@ -3,15 +3,36 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project(adept_test LANGUAGES CXX)
 
-# set the CXX compiler to DPC++
-# set(CMAKE_CXX_COMPILER dpcpp)
+set(default_gpu "Intel")
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+if (NOT ADEPT_GPU)
+    message(STATUS "Setting GPU type to '${default_gpu}' as GPU not specified.")
+    set(ADEPT_GPU ${default_gpu} CACHE
+      STRING "Choose the GPU type" FORCE)
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+    # Set the possible values of GPUs
+    set_property(CACHE ADEPT_GPU PROPERTY STRINGS
+        "Intel" "NVIDIA")
+else()
+    message(STATUS "The selected GPU type is ${ADEPT_GPU}.")
+endif()
 
+message(STATUS "The GPU selected is: ${ADEPT_GPU}")
+
+if (ADEPT_GPU STREQUAL "NVIDIA")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+
+elseif (ADEPT_GPU STREQUAL "AMD")
+    # todo
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif()
+
+# C++ standard = 17 needed
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "")
+
 add_subdirectory(adept)
 include_directories("adept")
 
