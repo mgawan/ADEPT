@@ -126,8 +126,8 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     max_que_size = _max_query_size;
 
     // TODO: host pinned memory for offsets - memory pinning needs buffer/accessor model in SYCL
-    offset_ref = sycl::malloc_host<int>(total_alignments, curr_stream->stream);
-    offset_que = sycl::malloc_host<int>(total_alignments, curr_stream->stream);
+    offset_ref = sycl::malloc_host<int>(batch_size, curr_stream->stream);
+    offset_que = sycl::malloc_host<int>(batch_size, curr_stream->stream);
 
 
     //host pinned memory for sequences - memory pinning needs buffer/accessor model in SYCL
@@ -290,7 +290,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         //
         // DNA kernel forward
         //
-        h.parallel_for<class Adept_F>(sycl::nd_range<1>(total_alignments * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
+        h.parallel_for<class Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, false, 
             item, 
@@ -407,7 +407,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         //
         // DNA kernel reverse
         //
-        h.parallel_for<class Adept_R>(sycl::nd_range<1>(total_alignments * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
+        h.parallel_for<class Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
         {
             Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
             item,
@@ -681,7 +681,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
     //total_alignments = alns_per_batch;
     std::cout << "Batch Size:"<< batch_size<<"\n";
     std::cout << "Total Alignments:"<< total_alignments<<"\n";
-    std::cout << "Total devices:"<< num_gpus<<"\n";
+    std::cout << "Total devices:"<< num_gpus <<"\n";
 
     std::vector<std::vector<std::string>> ref_batch_gpu;
     std::vector<std::vector<std::string>> que_batch_gpu;
