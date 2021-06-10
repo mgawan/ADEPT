@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
 project(adept_test LANGUAGES CXX)
 
+##########################################################################################
+#       GPU selection
+##########################################################################################
+
 set(default_gpu "Intel")
 
 if (NOT ADEPT_GPU)
@@ -16,8 +20,6 @@ if (NOT ADEPT_GPU)
 else()
     message(STATUS "The selected GPU type is ${ADEPT_GPU}.")
 endif()
-
-message(STATUS "The GPU selected is: ${ADEPT_GPU}")
 
 if (ADEPT_GPU STREQUAL "NVIDIA")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
@@ -33,11 +35,19 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "")
 
+##########################################################################################
+#       Add sub-directories
+##########################################################################################
+
 add_subdirectory(adept)
 include_directories("adept")
 
 add_executable(adept_test main.cpp)
 target_link_libraries(adept_test adept_lib_shared)
+
+##########################################################################################
+#       Configure Testing script
+##########################################################################################
 
 # install the test script
 if(NOT BASH_EXECUTABLE)
