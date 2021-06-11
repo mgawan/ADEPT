@@ -63,6 +63,12 @@ struct ADEPT::adept_stream
     // sycl queue
     sycl::queue stream;
 
+    // use a specific device
+    adept_stream(sycl::device *device)
+    {
+        stream = sycl::queue(*device);
+    }
+
     // use sycl default selector
     adept_stream()
     {
@@ -88,19 +94,19 @@ struct ADEPT::adept_stream
 // ------------------------------------------------------------------------------------ //
 
 void 
-ADEPT::aln_results::free_results(sycl::queue &stream_)
+ADEPT::aln_results::free_results()
 {
-    sycl::free(ref_begin, stream_);
-    sycl::free(ref_end, stream_);
-    sycl::free(query_begin, stream_);
-    sycl::free(query_end, stream_);
-    sycl::free(top_scores, stream_);
+    delete[] ref_begin;
+    delete[] ref_end;
+    delete[] query_begin;
+    delete[] query_end;
+    delete[] top_scores;
 }
 
 // ------------------------------------------------------------------------------------ //
 
 void 
-driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, int _device_id)
+driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, sycl::device *dev)
 {
     algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 
@@ -109,16 +115,23 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
         match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
     }
 
-    device_id = _device_id;
+    device = dev;
 
-    sycl::gpu_selector selector;
+    if (dev != nullptr)
+    {
+        sycl::gpu_selector selector;
+        // using the GPU selector type here
+        curr_stream = new adept_stream(&selector);
+    }
+    else
+    {
+        // using the GPU selector type here
+        curr_stream = new adept_stream(dev);
+    }
 
-    // using the GPU selector type here
-    curr_stream = new adept_stream(&selector);
-
-        // Print out the device information used for the kernel code.
-    std::cout << "Running on device: "
-              << curr_stream->stream.get_device().get_info<info::device::name>() << "\n";
+    // Print out the device information used for the kernel code.
+    std::cout << "INFO: The device: "
+              << curr_stream->stream.get_device().get_info<info::device::name>() << " is now ready!" << std::endl << std::endl;
 
     total_alignments = _tot_alns;
     batch_size = _batch_size;
@@ -128,7 +141,6 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     // TODO: host pinned memory for offsets - memory pinning needs buffer/accessor model in SYCL
     offset_ref = sycl::malloc_host<int>(batch_size, curr_stream->stream);
     offset_que = sycl::malloc_host<int>(batch_size, curr_stream->stream);
-
 
     //host pinned memory for sequences - memory pinning needs buffer/accessor model in SYCL
     ref_cstr = sycl::malloc_host<char>(max_ref_size * batch_size, curr_stream->stream);
@@ -193,8 +205,6 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     mem_cpy_htd(offset_ref_gpu, offset_query_gpu, offset_ref, offset_que, ref_cstr, ref_cstr_d, que_cstr, que_cstr_d, total_length_ref,  total_length_que); // 
 
     int minSize = (max_que_size < max_ref_size) ? max_que_size : max_ref_size;
-
-    std::cout << "Work-group size = " << minSize << std::endl;
 
     int totShmem = 3 * (minSize + 1) * sizeof(short);
     int alignmentPad = 4 + (4 - totShmem % 4);
@@ -474,6 +484,8 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
 
     curr_stream->stream.memcpy(strA_d, strA, totalLengthA * sizeof(char));
     curr_stream->stream.memcpy(strB_d, strB, totalLengthB * sizeof(char));
+
+    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -484,6 +496,8 @@ driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_g
     curr_stream->stream.memcpy(alAbeg + res_offset, ref_start_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(alBbeg + res_offset, query_start_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(top_scores_cpu + res_offset, scores_gpu, batch_size * sizeof(short));
+
+    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -493,6 +507,8 @@ driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_g
 {
     curr_stream->stream.memcpy(alAend + res_offset, ref_end_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(alBend + res_offset, query_end_gpu, batch_size * sizeof(short));
+
+    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -508,11 +524,11 @@ driver::mem_cpy_dth(int offset)
 void 
 driver::initialize_alignments()
 {
-    results.ref_begin =   sycl::malloc_host<short> (total_alignments, curr_stream->stream);
-    results.ref_end =     sycl::malloc_host<short> (total_alignments, curr_stream->stream);
-    results.query_begin = sycl::malloc_host<short> (total_alignments, curr_stream->stream);
-    results.query_end =   sycl::malloc_host<short> (total_alignments, curr_stream->stream);
-    results.top_scores =  sycl::malloc_host<short> (total_alignments, curr_stream->stream);
+    results.ref_begin =   new short[total_alignments];
+    results.ref_end =     new short[total_alignments]; 
+    results.query_begin = new short[total_alignments]; 
+    results.query_end =   new short[total_alignments]; 
+    results.top_scores =  new short[total_alignments]; 
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -570,10 +586,10 @@ driver::allocate_gpu_mem()
 // ------------------------------------------------------------------------------------ //
 
 size_t 
-ADEPT::get_batch_size(const sycl::queue &stream_, int max_q_size, int max_r_size, int per_gpu_mem)
+ADEPT::get_batch_size(const sycl::device &dev0, int max_q_size, int max_r_size, int per_gpu_mem)
 {
     // get the global memory size
-    auto globalMem = stream_.get_device().get_info<info::device::global_mem_size>();
+    auto globalMem = dev0.get_info<info::device::global_mem_size>();
 
     size_t gpu_mem_avail = (double)globalMem * (double)per_gpu_mem/100;
     size_t gpu_mem_per_align = max_q_size + max_r_size + 2 * sizeof(int) + 5 * sizeof(short);
@@ -613,7 +629,8 @@ void driver::dth_synch() { curr_stream->stream.wait_and_throw(); }
 
 // ------------------------------------------------------------------------------------ //
 
-aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[]){
+aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id)
+{
     int alns_this_gpu = ref_vec.size();
     int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
     if(iterations == 0) iterations = 1;
@@ -625,13 +642,12 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
     std::vector<std::vector<std::string>> its_ref_vecs;
     std::vector<std::vector<std::string>> its_que_vecs;
-    
-    // FIXME: What is my ID?
-    int my_cpu_id = 0; //omp_get_thread_num();
 
-    std::cout <<"total alignments:"<<alns_this_gpu<<" thread:"<<my_cpu_id<<"\n";
+    std::cout << "ThreadID = " << thread_id << "\t" << "owns: " << device->get_info<info::device::name>() << std::endl;
+    std::cout << "Local # Alignments = " << alns_this_gpu << std::endl << std::endl;
 
-    for(int i = 0; i < iterations ; i++){
+    for(int i = 0; i < iterations ; i++)
+    {
         std::vector<std::string>::const_iterator start_, end_;
         start_ = ref_vec.begin() + i * batch_size;
         if(i == iterations -1)
@@ -654,8 +670,11 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     }
 
     driver sw_driver_loc;
-    sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
-    for(int i = 0; i < iterations; i++){
+
+    sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, device);
+
+    for(int i = 0; i < iterations; i++)
+    {
         sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
         sw_driver_loc.mem_cpy_dth(i * batch_size);
         sw_driver_loc.dth_synch();
@@ -666,32 +685,45 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     return loc_results;
  }
 
-all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_){
-    if(batch_size_ == -1)
-        batch_size_ = ADEPT::get_batch_size(0, max_que_size, max_ref_size, 100);
+// ------------------------------------------------------------------------------------ //
+
+all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_)
+{
+    // get all the gpu devices
+    auto gpus = sycl::device::get_devices(info::device_type::gpu);
+    int num_gpus = gpus.size();
+
+    // see if at least one GPU found
+    if (num_gpus < 1)
+    {
+        std::cerr << "ABORT: No GPU device found on this platform." << std::endl << std::flush;
+        exit(-1);
+    }
 
     int total_alignments = ref_sequences.size();
-    int num_gpus;
-    
-    // FIXME: What is cudaGetDeviceCount
-    //cudaGetDeviceCount(&num_gpus);
-    
+
+    // adjust batch size if not provided
+     if(batch_size_ == -1)
+        batch_size_ = ADEPT::get_batch_size(gpus[0], max_que_size, max_ref_size, 100);
+
     int batch_size = batch_size_;
 
     //total_alignments = alns_per_batch;
-    std::cout << "Batch Size:"<< batch_size<<"\n";
-    std::cout << "Total Alignments:"<< total_alignments<<"\n";
-    std::cout << "Total devices:"<< num_gpus <<"\n";
 
     std::vector<std::vector<std::string>> ref_batch_gpu;
     std::vector<std::vector<std::string>> que_batch_gpu;
-    int alns_per_gpu = total_alignments/num_gpus;
-    int left_over = total_alignments%num_gpus;
 
-    std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
+    int alns_per_gpu = total_alignments / num_gpus;
+    int left_over = total_alignments % num_gpus;
 
-    // std::array<short, 4> scores = {3,-3,-6,-1};
-    for(int i = 0; i < num_gpus ; i++){
+    std::cout << "Batch Size = " << batch_size << std::endl;
+    std::cout << "Total Alignments = " << total_alignments << std::endl;
+    std::cout << "Total Devices = " << num_gpus << std::endl;
+    std::cout << "Alns per GPU = " << alns_per_gpu << std::endl << std::endl;
+
+    // divide the workload across GPUs
+    for(int i = 0; i < num_gpus ; i++)
+    {
         std::vector<std::string>::const_iterator start_, end_;
         start_ = ref_sequences.begin() + i * alns_per_gpu;
         if(i == num_gpus -1)
@@ -713,19 +745,32 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
         que_batch_gpu.push_back(temp_que);
     }
 
-    //omp_set_num_threads(num_gpus);
+    // alignment results from all GPUs
     all_alns global_results(num_gpus);
+
     global_results.per_gpu = alns_per_gpu;
     global_results.left_over = left_over;
     global_results.gpus = num_gpus;
 
-    //#pragma omp parallel
+    // create a thread pool for multiple GPUs
+    std::vector<std::thread> thread_pool;
+
+    // wrapper lambda function to provide thread_ids
+    auto thread_launcher = [&](int thread_id)
     {
-        // FIXME: What is my tid
-        int my_cpu_id = 0; // omp_get_thread_num();
-        global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail,    max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
-        //#pragma omp barrier
-    }
+        global_results.results[thread_id] = ADEPT::thread_launch(ref_batch_gpu[thread_id], que_batch_gpu[thread_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, &gpus[thread_id], scores, thread_id);
+    };
+
+    // launch threads for each GPU
+    for (auto tid = 0; tid < num_gpus; tid++)
+        thread_pool.push_back(std::move(std::thread(thread_launcher, tid)));
+
+    // wait for threads
+    for (auto& thd : thread_pool)
+        thd.join();
+
+    // clear the pool
+    thread_pool.clear();
 
     return global_results;
 }
