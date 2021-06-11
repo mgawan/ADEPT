@@ -643,13 +643,14 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     std::vector<std::vector<std::string>> its_ref_vecs;
     std::vector<std::vector<std::string>> its_que_vecs;
 
-    std::cout << "ThreadID = " << thread_id << "\t" << "owns: " << device->get_info<info::device::name>() << std::endl;
+    std::cout << "Thread # " << thread_id << " " << "now owns device: " << device->get_info<info::device::name>() << std::endl;
     std::cout << "Local # Alignments = " << alns_this_gpu << std::endl << std::endl;
 
     for(int i = 0; i < iterations ; i++)
     {
         std::vector<std::string>::const_iterator start_, end_;
         start_ = ref_vec.begin() + i * batch_size;
+
         if(i == iterations -1)
             end_ = ref_vec.begin() + i * batch_size + batch_last_it;
         else
@@ -658,6 +659,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
         std::vector<std::string> temp_ref(start_, end_);
 
         start_ = que_vec.begin() + i * batch_size;
+
         if(i == iterations - 1)
             end_ = que_vec.begin() + i * batch_size + batch_last_it;
         else
@@ -675,13 +677,17 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
     for(int i = 0; i < iterations; i++)
     {
+        std::cout << "Thread # " << thread_id << " launched kernel with batch_size = " << ((i < iterations - 1)? batch_size: batch_last_it) << std::endl;
+
         sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
         sw_driver_loc.mem_cpy_dth(i * batch_size);
         sw_driver_loc.dth_synch();
     }
 
     auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
+
     sw_driver_loc.cleanup();
+
     return loc_results;
  }
 
@@ -696,7 +702,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
     // see if at least one GPU found
     if (num_gpus < 1)
     {
-        std::cerr << "ABORT: No GPU device found on this platform." << std::endl << std::flush;
+        std::cerr << "ABORT: No GPU device found on this platform" << std::endl << std::flush;
         exit(-1);
     }
 
