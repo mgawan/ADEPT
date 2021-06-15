@@ -1,6 +1,6 @@
 #include <vector>
 #include <string>
-#include <omp.h>
+//#include <omp.h>
 
 namespace ADEPT{
 	enum ALG_TYPE{SW, NW};

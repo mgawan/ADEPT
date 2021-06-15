@@ -1,5 +1,6 @@
 #include "kernel.hpp"
 #include "driver.hpp"
+#include <thread>
 
 #define cudaErrchk(ans)                                                                  \
 {                                                                                    \
@@ -255,9 +256,9 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
 	std::vector<std::vector<std::string>> its_ref_vecs;
 	std::vector<std::vector<std::string>> its_que_vecs;
-	int my_cpu_id = omp_get_thread_num();
+	int my_cpu_id = dev_id;//omp_get_thread_num();
 
-	std::cout <<"total alignments:"<<alns_this_gpu<<" thread:"<<my_cpu_id<<"\n";
+	std::cout <<"total alignments:"<<alns_this_gpu<<" thread:"<<my_cpu_id<<std::endl;
 	for(int i = 0; i < iterations ; i++){
 		std::vector<std::string>::const_iterator start_, end_;
 		start_ = ref_vec.begin() + i * batch_size;
@@ -283,6 +284,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 	driver sw_driver_loc;
 	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
+		std::cout<<"iteration:"<<i<<" on gpu:"<<dev_id<<std::endl;
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
 		sw_driver_loc.dth_synch();
@@ -302,16 +304,16 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
 	unsigned batch_size = batch_size_;
 	
 	//total_alignments = alns_per_batch;
-	std::cout << "Batch Size:"<< batch_size<<"\n";
-	std::cout << "Total Alignments:"<< total_alignments<<"\n";
-    std::cout << "Total devices:"<< num_gpus<<"\n";
+	std::cout << "Batch Size:"<< batch_size<<std::endl;
+	std::cout << "Total Alignments:"<< total_alignments<<std::endl;
+    std::cout << "Total devices:"<< num_gpus<<std::endl;
 
 	std::vector<std::vector<std::string>> ref_batch_gpu;
 	std::vector<std::vector<std::string>> que_batch_gpu;
 	int alns_per_gpu = total_alignments/num_gpus;
 	int left_over = total_alignments%num_gpus;
 
-	std::cout<< "Alns per GPU:"<<alns_per_gpu<<"\n";
+	std::cout<< "Alns per GPU:"<<alns_per_gpu<<std::endl;
    // std::array<short, 4> scores = {3,-3,-6,-1};
 
 	for(int i = 0; i < num_gpus ; i++){
@@ -321,32 +323,44 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
 			end_ = ref_sequences.begin() + (i + 1) * alns_per_gpu + left_over;
 		else
 			end_ = ref_sequences.begin() + (i + 1) * alns_per_gpu;
-
 		std::vector<std::string> temp_ref(start_, end_);
-
 		start_ = que_sequences.begin() + i * alns_per_gpu;
 		if(i == num_gpus - 1)
 			end_ = que_sequences.begin() + (i + 1) * alns_per_gpu + left_over;
 		else
 			end_ = que_sequences.begin() + (i + 1) * alns_per_gpu;
-
 		std::vector<std::string> temp_que(start_, end_);
 
 		ref_batch_gpu.push_back(temp_ref);
 		que_batch_gpu.push_back(temp_que);
+		std::cout<<"gpu:"<<i<<" has alns:"<<temp_ref.size()<<std::endl;
 	}
-  omp_set_num_threads(num_gpus);
+  //omp_set_num_threads(num_gpus);
   all_alns global_results(num_gpus);
   global_results.per_gpu = alns_per_gpu;
   global_results.left_over = left_over;
   global_results.gpus = num_gpus;
 
-  #pragma omp parallel
-  {
-    int my_cpu_id = omp_get_thread_num();
-	global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
-    #pragma omp barrier
+  std::vector<std::thread> threads;
+  auto lambda_call = [&](int my_cpu_id){
+	 global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores); 
+  };
+
+  for(int tid = 0; tid < num_gpus; tid++){
+	  threads.push_back(std::thread(lambda_call, tid));
   }
+
+  for (auto &thrd : threads){
+	  thrd.join();
+  }
+
+  threads.clear();
+//   #pragma omp parallel
+//   {
+//     int my_cpu_id = omp_get_thread_num();
+// 	global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
+//     #pragma omp barrier
+//   }
 
 return global_results;
 }
