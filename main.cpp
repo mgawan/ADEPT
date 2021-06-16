@@ -34,7 +34,7 @@
 
 // constants
 const int MAX_REF_LEN    =  1200;
-const int MAX_QUERY_LEN  =   256;
+const int MAX_QUERY_LEN  =   300;
 const int BATCH_SIZE     = 20000;
 const int GPU_ID         =     0;
 
@@ -162,6 +162,8 @@ main(int argc, char* argv[])
     ofstream results_file(outFile);
     int tot_gpus = all_results.gpus;
 
+    std::cout << std::endl << "Writing results..." << std::endl << std::endl;
+
     // write the results header
     results_file << "alignment_scores\t"     << "reference_begin_location\t" << "reference_end_location\t" 
                  << "query_begin_location\t" << "query_end_location"         << endl;
@@ -187,33 +189,9 @@ main(int argc, char* argv[])
 
     for(int i = 0; i < tot_gpus; i++)
         all_results.results[i].free_results();
-
-    // ------------------------------------------------------------------------------------ //
-
-    //
-    // FXIME: remove this dead code?
-    //
-
-    // ADEPT::driver sw_driver;
-    // std::array<short, 4> scores = {3,-3,-6,-1};
-    // sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, 30000, 30000, 0);
-    // sw_driver.kernel_launch(ref_sequences, que_sequences);
-    // sw_driver.mem_cpy_dth();
-    // sw_driver.dth_synch();
-
-    // auto results = sw_driver.get_alignments();
-
-    // ofstream results_file(out_file);
-    // for(int k = 0; k < ref_sequences.size(); k++){
-    //   results_file<<results.top_scores[k]<<"\t"<<results.ref_begin[k]<<"\t"<<results.ref_end[k] - 1<<
-    //   "\t"<<results.query_begin[k]<<"\t"<<results.query_end[k] - 1<<endl;
-    // }
-
-
-    // sw_driver.cleanup();
-    // sw_driver.free_results();
-    // results_file.flush();
-    // results_file.close();
+    
+    // flush everything
+    std::cout << std::flush;
 
     return 0;
 }

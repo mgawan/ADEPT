@@ -28,8 +28,8 @@
 
 using time_point_t = std::chrono::system_clock::time_point;
 
-#define MARK_START(mark)                  time_point_t mark = std::chrono::system_clock::now()
-#define MARK_END(mark)                    time_point_t mark = std::chrono::system_clock::now()
+#define MARK_START(mark)                  static thread_local time_point_t mark = std::chrono::system_clock::now()
+#define MARK_END(mark)                    static thread_local time_point_t mark = std::chrono::system_clock::now()
 
 #define ELAPSED_SECONDS(mark1, mark2)     std::chrono::duration<double>(mark2 - mark1).count()
 
