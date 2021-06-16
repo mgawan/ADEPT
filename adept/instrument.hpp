@@ -26,10 +26,12 @@
 
 #include <chrono>
 
+#if defined (ADEPT_INSTR)
+
 using time_point_t = std::chrono::system_clock::time_point;
 
-#define MARK_START(mark)                  time_point_t mark = std::chrono::system_clock::now()
-#define MARK_END(mark)                    time_point_t mark = std::chrono::system_clock::now()
+#define MARK_START(mark)                  static thread_local time_point_t mark = std::chrono::system_clock::now()
+#define MARK_END(mark)                    static thread_local time_point_t mark = std::chrono::system_clock::now()
 
 #define ELAPSED_SECONDS(mark1, mark2)     std::chrono::duration<double>(mark2 - mark1).count()
 
@@ -38,4 +40,15 @@ using time_point_t = std::chrono::system_clock::time_point;
 //
 // MACRO for printing elapsed time
 //
-#define PRINT_ELAPSED(es)                 std::cout << "Elapsed Time: " << es << "s" << std::endl << std::endl
+#define PRINT_ELAPSED(es)                 std::cout << "Elapsed Time: " << es << "s" << std::endl
+
+#else
+
+#define MARK_START(mark)
+#define MARK_END(mark)
+
+#define ELAPSED_SECONDS(mark1, mark2)     (double) 0
+#define ELAPSED_SECONDS_FROM(mark)        (double) 0
+#define PRINT_ELAPSED(es)
+
+#endif // ADEPT_INSTR

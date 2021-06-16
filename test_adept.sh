@@ -59,18 +59,60 @@ make install -j 16
 
 # testing loop
 for i in $(seq 1 $R); do
-    printf "\nRunning $i out of $R\n\n"; 
-    ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ../test-data/dna-output-$i.out ;
-    DIFF=$(diff ../test-data/expected256.algn ../test-data/dna-output-$i.out);
+    REF=../test-data/expected256.algn
+    ALN=../test-data/dna-output-$i.out
+    printf "\nRunning $i out of $R\n\n";
+    ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
 
-    if [ "$DIFF" == "" ]; then
-        printf "\nSUCCESS\n"
-    else
-        echo "FAILED. Check $PWD/../test-data/dna-output$i.diff"
-        echo "$DIFF" >> ../test-data/dna-output$i.diff
+    # if output was produced (adept ran successfully?)
+    if [ -f "$ALN" ]; then
+        DIFF=$(diff $REF $ALN);
+    else 
+        echo "ERROR: Output file does not exist";
+        break;
     fi
 
-    echo "Removing $i" ; rm ../test-data/dna-output-$i.out ;
+    # check if any diff?
+    if [ "$DIFF" == "" ]; then
+        printf "\nSUCCESS\n\n";
+        echo "Removing $ALN" ; rm $ALN ;
+    else
+        echo "$DIFF" >> ./$ALN.diff ;
+        echo "FAILED. Check $PWD/$ALN.diff" ;
+        break;
+    fi
+
+done
+
+
+# test datasets
+for i in $(seq 1 3); do
+    printf "\nRunning dataset: $i out of $R\n\n"; 
+
+    # ALIGNMENTS
+    REF=/global/homes/m/mhaseeb/repos/muaaz_adept/build/align_ds$i.out
+    ALN=./align_ds$i.out; 
+
+    ./adept_test /global/cscratch1/sd/mhaseeb/sw-benchmarks/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/read_set_$i.fasta  $ALN;
+
+    # if output was produced (adept ran successfully?)
+    if [ -f "$ALN" ]; then
+        DIFF=$(diff $REF $ALN);
+    else 
+        echo "ERROR: Output file does not exist";
+        break ;
+    fi
+
+    # check if any diff?
+    if [ "$DIFF" == "" ]; then
+        printf "\nSUCCESS\n\n";
+        echo "Removing $ALN" ; rm $ALN ;
+
+    else
+        echo "$DIFF" >> ./$ALN.diff ;
+        echo "FAILED. Check $PWD/$ALN.diff" ;
+        break;
+    fi
 done
 
 # go back to the directory

@@ -105,19 +105,19 @@ private:
     void dealloc_gpu_mem();
     void initialize_alignments();
     
-    void mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, int* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, int totalLengthA, int totalLengthB);
+    double mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, int* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, int totalLengthA, int totalLengthB);
     
-    void mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu, int res_offset = 0);
-    void mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset = 0);
+    double mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu, int res_offset = 0);
+    double mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset = 0);
     int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
 
 public:
     // default constructor
     driver() = default;
 
-    void initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *dev); // each adept_dna object will have a unique cuda stream
-    void kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset = 0);
-    void mem_cpy_dth(int offset = 0);
+    double initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *dev); // each adept_dna object will have a unique cuda stream
+    std::array<double, 4> kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset = 0);
+    double mem_cpy_dth(int offset = 0);
     aln_results get_alignments();
     bool kernel_done();
     bool dth_done();
