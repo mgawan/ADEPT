@@ -105,7 +105,7 @@ ADEPT::aln_results::free_results()
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+double 
 driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, sycl::device *dev)
 {
     algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
@@ -131,7 +131,7 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 
     // Print out the device information used for the kernel code.
     std::cout << "INFO: The device: "
-              << curr_stream->stream.get_device().get_info<info::device::name>() << " is now ready!" << std::endl << std::endl;
+              << curr_stream->stream.get_device().get_info<info::device::name>() << " is now ready!" << std::endl;
 
     total_alignments = _tot_alns;
     batch_size = _batch_size;
@@ -149,17 +149,22 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     // host pinned memory for results - memory pinning needs buffer/accessor model in SYCL
     initialize_alignments();
 
+    // measure memory allocation times
+    MARK_START(init);
+
     //device memory for sequences
     ref_cstr_d = sycl::malloc_device<char>(max_ref_size * batch_size, curr_stream->stream);
     que_cstr_d = sycl::malloc_device<char>(max_que_size * batch_size, curr_stream->stream);
 
     //device memory for offsets and results
     allocate_gpu_mem();
+
+    return ELAPSED_SECONDS_FROM(init);
 }
 
 // ------------------------------------------------------------------------------------ //
 
-std::array<double, 2>
+std::array<double, 4>
 driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset)
 {
     if(ref_seqs.size() < batch_size)
@@ -202,7 +207,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     }
 
     //move data to GPU
-    mem_cpy_htd(offset_ref_gpu, offset_query_gpu, offset_ref, offset_que, ref_cstr, ref_cstr_d, que_cstr, que_cstr_d, total_length_ref,  total_length_que);
+    auto htd_time = mem_cpy_htd(offset_ref_gpu, offset_query_gpu, offset_ref, offset_que, ref_cstr, ref_cstr_d, que_cstr, que_cstr_d, total_length_ref,  total_length_que);
 
     int minSize = (max_que_size < max_ref_size) ? max_que_size : max_ref_size;
 
@@ -324,7 +329,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // PRINT_ELAPSED(f_kernel_time);
 
     // copy memory
-    mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
+    auto dth_mid_time = mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
 
     // compute new length
     int new_length = get_new_min_length(results.ref_end, results.query_end, batch_size);
@@ -435,8 +440,8 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 
     // PRINT_ELAPSED(r_kernel_time);
 
-    // return cumulative forward and reverse kernel time
-    return std::array<double, 2>{f_kernel_time, r_kernel_time};
+    // return cumulative times
+    return std::array<double, 4>{f_kernel_time, r_kernel_time, htd_time, dth_mid_time};
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -468,7 +473,7 @@ driver::get_new_min_length(short* alAend, short* alBend, int blocksLaunched)
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+double 
 driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, int* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, int totalLengthA, int totalLengthB)
 {
     // marker for host 2 device data transfer
@@ -486,11 +491,13 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
     auto htd_time = ELAPSED_SECONDS_FROM(htd);
 
     //PRINT_ELAPSED(htd_time);
+
+    return htd_time;
 }
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+double 
 driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu, short* alBbeg, short* scores_gpu, short* top_scores_cpu, int res_offset)
 {
     // marker for device 2 host data transfer
@@ -506,11 +513,13 @@ driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_g
     auto dth_time = ELAPSED_SECONDS_FROM(dth);
 
     //PRINT_ELAPSED(dth_time);
+
+    return dth_time;
 }
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+double 
 driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset)
 {
     // marker for device 2 host mid data transfer
@@ -525,14 +534,16 @@ driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_g
     auto dth_mid_time = ELAPSED_SECONDS_FROM(dth_mid);
 
     //PRINT_ELAPSED(dth_mid_time);
+
+    return dth_mid_time;
 }
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+double 
 driver::mem_cpy_dth(int offset)
 {
-    mem_copies_dth(ref_start_gpu, results.ref_begin, query_start_gpu, results.query_begin, scores_gpu , results.top_scores, offset);
+    return mem_copies_dth(ref_start_gpu, results.ref_begin, query_start_gpu, results.query_begin, scores_gpu , results.top_scores, offset);
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -672,7 +683,10 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     // initialize the adept driver
     driver sw_driver_loc;
 
-    sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, device);
+    auto init_time = sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, device);
+
+    PRINT_ELAPSED(init_time);
+    std::cout << std::endl;
 
     for(int i = 0; i < iterations ; i++)
     {
@@ -703,15 +717,19 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
         auto&& ktimes = sw_driver_loc.kernel_launch(temp_ref, temp_que, i * batch_size);
 
         // copy results d2h
-        sw_driver_loc.mem_cpy_dth(i * batch_size);
+        auto d2h_time = sw_driver_loc.mem_cpy_dth(i * batch_size);
+
         // synchronize
         sw_driver_loc.dth_synch();
 
         // print progress every 5%
         if (i % iter_20 == 0 || i == iterations - 1)
         {
-            std::cout << "Cumulative Fkernel time = " << ktimes[0] << std::endl;
-            std::cout << "Cumulative Rkernel time = " << ktimes[1] << std::endl << std::endl;
+            std::cout << "Cumulative Fkernel time: " << ktimes[0] << "s" << std::endl;
+            std::cout << "Cumulative Rkernel time: " << ktimes[1] << "s" << std::endl;
+            std::cout << "Cumulative H2D time: " << ktimes[2] << "s" << std::endl;
+            std::cout << "Cumulative D2Hmid time: " << ktimes[3] << "s" << std::endl;
+            std::cout << "Cumulative D2H time: " << d2h_time << "s" << std::endl << std::endl;
         }
     }
 
