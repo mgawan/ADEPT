@@ -159,7 +159,7 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 
 // ------------------------------------------------------------------------------------ //
 
-void 
+std::array<double, 2>
 driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset)
 {
     if(ref_seqs.size() < batch_size)
@@ -321,7 +321,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // compute the time from initial marker
     auto f_kernel_time = ELAPSED_SECONDS_FROM(fwd_time);
 
-    //PRINT_ELAPSED(f_kernel_time);
+    // PRINT_ELAPSED(f_kernel_time);
 
     // copy memory
     mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
@@ -435,6 +435,8 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 
     // PRINT_ELAPSED(r_kernel_time);
 
+    // return cumulative forward and reverse kernel time
+    return std::array<double, 2>{f_kernel_time, r_kernel_time};
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -658,7 +660,8 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     int left_over = alns_this_gpu % batch_size;
     int batch_last_it = batch_size;
 
-    int iter_20 = iterations/20;
+    // minimum 20 or 5% iterations
+    int iter_20 = std::max(20, iterations/20);
 
     if(left_over > 0)
         batch_last_it = left_over;
@@ -697,11 +700,19 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
             std::cout << "Thread # " << thread_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
 
         // launch kernel
-        sw_driver_loc.kernel_launch(temp_ref, temp_que, i * batch_size);
+        auto&& ktimes = sw_driver_loc.kernel_launch(temp_ref, temp_que, i * batch_size);
+
         // copy results d2h
         sw_driver_loc.mem_cpy_dth(i * batch_size);
         // synchronize
         sw_driver_loc.dth_synch();
+
+        // print progress every 5%
+        if (i % iter_20 == 0 || i == iterations - 1)
+        {
+            std::cout << "Cumulative Fkernel time = " << ktimes[0] << std::endl;
+            std::cout << "Cumulative Rkernel time = " << ktimes[1] << std::endl << std::endl;
+        }
     }
 
     // get all alignment results

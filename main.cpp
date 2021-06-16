@@ -33,16 +33,16 @@
 #include <functional>
 
 // constants
-const int MAX_REF_LEN    =  1200;
-const int MAX_QUERY_LEN  =   300;
-const int BATCH_SIZE     = 20000;
-const int GPU_ID         =     0;
+constexpr int MAX_REF_LEN    =  1200;
+constexpr int MAX_QUERY_LEN  =   300;
+constexpr int BATCH_SIZE     = 20000;
+constexpr int GPU_ID         =     0;
 
 // scores
-const short MATCH          =  3;
-const short MISMATCH       = -3;
-const short GAP_OPEN       = -6;
-const short GAP_EXTEND     = -1;
+constexpr short MATCH          =  3;
+constexpr short MISMATCH       = -3;
+constexpr short GAP_OPEN       = -6;
+constexpr short GAP_EXTEND     = -1;
 
 using namespace std;
 
@@ -54,6 +54,14 @@ using namespace std;
 int 
 main(int argc, char* argv[])
 {
+    //
+    // Print banner
+    //
+    std::cout <<                               std::endl;
+    std::cout << "------------------------" << std::endl;
+    std::cout << "       ADEPT SYCL       " << std::endl;
+    std::cout << "------------------------" << std::endl;
+    std::cout <<                               std::endl;
     //
     // argparser
     //
@@ -86,6 +94,9 @@ main(int argc, char* argv[])
     //
     // File parser
     //
+
+    // print status
+    std::cout << "STATUS: Reading ref and query files" << std::endl;
 
     // extract reference sequences
     if(ref_file.is_open())
@@ -144,9 +155,11 @@ main(int argc, char* argv[])
     // run ADEPT on multiple GPUs
     //
 
-    // get batch size
-    auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
+    // print status
+    std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
+    // get batch size
+    // auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
     // size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     std::array<short, 4> scores = { MATCH, MISMATCH, GAP_OPEN, GAP_EXTEND };
@@ -162,7 +175,7 @@ main(int argc, char* argv[])
     ofstream results_file(outFile);
     int tot_gpus = all_results.gpus;
 
-    std::cout << std::endl << "Writing results..." << std::endl << std::endl;
+    std::cout << std::endl << "STATUS: Writing results..." << std::endl;
 
     // write the results header
     results_file << "alignment_scores\t"     << "reference_begin_location\t" << "reference_end_location\t" 
@@ -187,11 +200,12 @@ main(int argc, char* argv[])
     // Cleanup
     //
 
+    // cleanup all_results
     for(int i = 0; i < tot_gpus; i++)
         all_results.results[i].free_results();
     
-    // flush everything
-    std::cout << std::flush;
+    // flush everything to stdout
+    std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
 
     return 0;
 }
