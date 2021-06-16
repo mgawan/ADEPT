@@ -18,6 +18,14 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+option (ADEPT_INSTR "Enable Instrumentation in ADEPT" ON)
+
+if (ADEPT_INSTR)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DADEPT_INSTR")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DADEPT_INSTR")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -DADEPT_INSTR")
+endif()
+
 ##########################################################################################
 #       GPU selection
 ##########################################################################################

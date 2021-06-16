@@ -722,6 +722,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
         // synchronize
         sw_driver_loc.dth_synch();
 
+#if defined (ADEPT_INSTR)
         // print progress every 5%
         if (i % iter_20 == 0 || i == iterations - 1)
         {
@@ -731,6 +732,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
             std::cout << "Cumulative D2Hmid time: " << ktimes[3] << "s" << std::endl;
             std::cout << "Cumulative D2H time: " << d2h_time << "s" << std::endl << std::endl;
         }
+#endif // ADEPT_INSTR
     }
 
     // get all alignment results

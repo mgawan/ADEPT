@@ -62,6 +62,7 @@ main(int argc, char* argv[])
     std::cout << "       ADEPT SYCL       " << std::endl;
     std::cout << "------------------------" << std::endl;
     std::cout <<                               std::endl;
+
     //
     // argparser
     //

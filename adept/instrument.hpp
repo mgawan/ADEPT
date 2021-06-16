@@ -26,8 +26,6 @@
 
 #include <chrono>
 
-#define ADEPT_INSTR
-
 #if defined (ADEPT_INSTR)
 
 using time_point_t = std::chrono::system_clock::time_point;
@@ -49,8 +47,8 @@ using time_point_t = std::chrono::system_clock::time_point;
 #define MARK_START(mark)
 #define MARK_END(mark)
 
-#define ELAPSED_SECONDS(mark1, mark2)
-#define ELAPSED_SECONDS_FROM(mark)
+#define ELAPSED_SECONDS(mark1, mark2)     (double) 0
+#define ELAPSED_SECONDS_FROM(mark)        (double) 0
 #define PRINT_ELAPSED(es)
 
 #endif // ADEPT_INSTR
