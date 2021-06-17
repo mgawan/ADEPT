@@ -26,27 +26,16 @@
 
 # print usage
 function usage() {
-    echo "USAGE: test_adept.sh <num_iterations> <adept_build>"
-    echo "num_iterations: Number of iterations to run. default: 5"
+    echo "USAGE: test_adept.sh <adept_build>"
     echo "adept_build: Path to ADEPT build directory. default: $PWD"
     echo ""
 }
 
-# set number of iterations and build path from the command line args
-R=$1
-ADEPT=$2
-
-# if not provided, set to 5
-if [ -z "$1" ]; then
-    usage
-    echo "INFO: setting number of iters = 5"
-    R=5
-    echo "INFO: setting ADEPT build path to $PWD"
-    ADEPT=$PWD
-fi
+# set build path from the command line args
+ADEPT=$1
 
 # if not provided, set to $PWD
-if [ -z "$2" ]; then
+if [ -z "$1" ]; then
     echo "INFO: setting ADEPT build path to $PWD"
     ADEPT=$PWD
 fi
@@ -55,32 +44,42 @@ fi
 pushd $ADEPT
 
 # make once
-make install -j 16
+make clean
+make install -j 8
 
-REF=../test-data/expected256.algn
+# if output was produced (adept ran successfully?)
+if [ -f "$ADEPT/log_SYCL.out" ]; then
+    echo "Removing old $ADEPT/log_SYCL.out";
+    rm $ADEPT/log_SYCL.out;
+fi
 
-# testing loop
-for i in $(seq 1 $R); do
-    ALN=../test-data/dna-output-$i.out
-    printf "\nRunning $i out of $R\n\n";
-    srun ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+# test datasets
+for i in $(seq 1 3); do
+    printf "\nRunning dataset: $i out of 3\n\n"; 
+
+    # ALIGNMENTS
+    REF=/global/homes/m/mhaseeb/repos/muaaz_adept/build/align_ds$i.out
+    ALN=./align_ds$i.out; 
+
+    srun ./adept_test /global/cscratch1/sd/mhaseeb/sw-benchmarks/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then
         DIFF=$(diff $REF $ALN);
     else 
         echo "ERROR: Output file does not exist";
-        break;
+        break ;
     fi
 
     # check if any diff?
     if [ "$DIFF" == "" ]; then
         printf "\nSUCCESS\n\n";
-        echo "Removing $ALN" ; rm $ALN ;
+        # echo "Removing $ALN" ; rm $ALN ;
     else
         echo "$DIFF" >> ./$ALN.diff ;
-        echo "FAILED. Check $PWD/$ALN.diff" ;
-        break;
     fi
 
 done
+
+# go back to the directory
+popd
