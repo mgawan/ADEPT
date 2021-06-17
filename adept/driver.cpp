@@ -224,6 +224,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 
     // marker for forward kernel
     MARK_START(fwd_time);
+    static thread_local double f_kernel_time = 0;
 
     // queue the forward Smith Waterman kernel
     auto f_kernel = curr_stream->stream.submit([&](sycl::handler &h)
@@ -323,10 +324,8 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // stream wait
     curr_stream->stream.wait_and_throw();
 
-    // compute the time from initial marker
-    auto f_kernel_time = ELAPSED_SECONDS_FROM(fwd_time);
-
-    // PRINT_ELAPSED(f_kernel_time);
+    // accumulate the forward kernel time
+    f_kernel_time += ELAPSED_SECONDS_FROM(fwd_time);
 
     // copy memory
     auto dth_mid_time = mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
@@ -336,6 +335,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
 
     // marker for reverse kernel
     MARK_START(rev_time);
+    static thread_local double r_kernel_time = 0;
 
     // queue the reverse Smith Waterman kernel
     auto r_kernel = curr_stream->stream.submit([&](sycl::handler &h)
@@ -435,10 +435,8 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     // stream wait
     curr_stream->stream.wait_and_throw();
 
-    // compute the time from initial marker
-    auto r_kernel_time = ELAPSED_SECONDS_FROM(rev_time);
-
-    // PRINT_ELAPSED(r_kernel_time);
+    // accumulate the reverse kernel time
+    r_kernel_time += ELAPSED_SECONDS_FROM(rev_time);
 
     // return cumulative times
     return std::array<double, 4>{f_kernel_time, r_kernel_time, htd_time, dth_mid_time};
@@ -478,6 +476,7 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
 {
     // marker for host 2 device data transfer
     MARK_START(htd);
+    static thread_local double htd_time = 0;
 
     curr_stream->stream.memcpy(offset_ref_gpu, offsetA_h, batch_size * sizeof(int));
     curr_stream->stream.memcpy(offset_query_gpu, offsetB_h, batch_size * sizeof(int));
@@ -487,10 +486,8 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
 
     curr_stream->stream.wait_and_throw();
 
-    // compute the time from initial marker
-    auto htd_time = ELAPSED_SECONDS_FROM(htd);
-
-    //PRINT_ELAPSED(htd_time);
+    // accumulate the time
+    htd_time += ELAPSED_SECONDS_FROM(htd);
 
     return htd_time;
 }
@@ -502,17 +499,16 @@ driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_g
 {
     // marker for device 2 host data transfer
     MARK_START(dth);
-
+    static thread_local double dth_time = 0;
+    
     curr_stream->stream.memcpy(alAbeg + res_offset, ref_start_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(alBbeg + res_offset, query_start_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(top_scores_cpu + res_offset, scores_gpu, batch_size * sizeof(short));
 
     curr_stream->stream.wait_and_throw();
 
-    // compute the time from initial marker
-    auto dth_time = ELAPSED_SECONDS_FROM(dth);
-
-    //PRINT_ELAPSED(dth_time);
+    // accumulate the time
+    dth_time += ELAPSED_SECONDS_FROM(dth);
 
     return dth_time;
 }
@@ -524,16 +520,15 @@ driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_g
 {
     // marker for device 2 host mid data transfer
     MARK_START(dth_mid);
+    static thread_local double dth_mid_time = 0;
 
     curr_stream->stream.memcpy(alAend + res_offset, ref_end_gpu, batch_size * sizeof(short));
     curr_stream->stream.memcpy(alBend + res_offset, query_end_gpu, batch_size * sizeof(short));
 
     curr_stream->stream.wait_and_throw();
 
-    // compute the time from initial marker
-    auto dth_mid_time = ELAPSED_SECONDS_FROM(dth_mid);
-
-    //PRINT_ELAPSED(dth_mid_time);
+    // accumulate the time
+    dth_mid_time += ELAPSED_SECONDS_FROM(dth_mid);
 
     return dth_mid_time;
 }
