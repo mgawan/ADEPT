@@ -117,15 +117,16 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 
     device = dev;
 
-    if (dev != nullptr)
+    if (dev == nullptr)
     {
         sycl::gpu_selector selector;
+
         // using the GPU selector type here
         curr_stream = new adept_stream(&selector);
     }
     else
     {
-        // using the GPU selector type here
+        // using the device here
         curr_stream = new adept_stream(dev);
     }
 
