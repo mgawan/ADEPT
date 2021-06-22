@@ -674,7 +674,8 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
         batch_last_it = left_over;
 
     std::cout << "Thread # " << thread_id << " " << "now owns device: " << device->get_info<info::device::name>() << std::endl;
-    std::cout << "Local # Alignments = " << alns_this_gpu << std::endl << std::endl;
+
+    std::cout << "Local # Alignments = " << alns_this_gpu << std::endl << std::endl << std::flush;
 
     // initialize the adept driver
     driver sw_driver_loc;
@@ -775,7 +776,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
     std::cout << "Batch Size = " << batch_size << std::endl;
     std::cout << "Total Alignments = " << total_alignments << std::endl;
     std::cout << "Total Devices = " << num_gpus << std::endl;
-    std::cout << "Alns per GPU = " << alns_per_gpu << std::endl << std::endl;
+    std::cout << "Alns per GPU = " << alns_per_gpu << std::endl << std::endl << std::flush;
 
     // divide the workload across GPUs
     for(int i = 0; i < num_gpus ; i++)

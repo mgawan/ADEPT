@@ -28,15 +28,17 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include<bits/stdc++.h>
-#include <thread>
+#include <limits>
+#include <bits/stdc++.h>
 #include <functional>
 
 // constants
 constexpr int MAX_REF_LEN    =  1200;
 constexpr int MAX_QUERY_LEN  =   300;
-constexpr int BATCH_SIZE     = 30000;
+constexpr int BATCH_SIZE     = 50000;
 constexpr int GPU_ID         =     0;
+
+constexpr unsigned int DATA_SIZE = BATCH_SIZE; // std::numeric_limits<unsigned int>::max();
 
 // scores
 constexpr short MATCH          =  3;
@@ -81,7 +83,7 @@ main(int argc, char* argv[])
 
     vector<string> ref_sequences, que_sequences;
 
-    string   myInLine;
+    string lineR, lineQ;
 
     ifstream ref_file(refFile);
     ifstream quer_file(queFile);
@@ -100,54 +102,49 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Reading ref and query files" << std::endl;
 
     // extract reference sequences
-    if(ref_file.is_open())
+    if(ref_file.is_open() && quer_file.is_open())
     {
-        while(getline(ref_file, myInLine))
+        while(getline(ref_file, lineR) && ref_sequences.size() <= DATA_SIZE)
         {
-            if(myInLine[0] == '>')
+            getline(quer_file, lineQ);
+
+            if(lineR[0] == '>')
             {
-                continue;
+                if (lineR[0] == '>')
+                    continue;
+                else
+                {
+                    std::cout << "FATAL: Mismatch in lines" << std::endl;
+                    exit(-2);
+                }
             }
             else
             {
-                string seq = myInLine;
-                ref_sequences.push_back(seq);
-                totSizeA += seq.size();
-
-                if(seq.size() > largestA)
+                if (lineR.length() <= MAX_REF_LEN && lineQ.length() <= MAX_QUERY_LEN)
                 {
-                    largestA = seq.size();
+                    ref_sequences.push_back(lineR);
+                    que_sequences.push_back(lineQ);
+
+                    totSizeA += lineR.length();
+                    totSizeB += lineQ.length();
+
+                    if(lineR.length() > largestA)
+                        largestA = lineR.length();
+
+                    if(lineQ.length() > largestA)
+                        largestB = lineQ.length();
                 }
             }
         }
 
         ref_file.close();
+        quer_file.close();
     }
 
-    // extract query sequences
-    if(quer_file.is_open())
+    if (ref_sequences.size() != que_sequences.size())
     {
-        while(getline(quer_file, myInLine))
-        {
-
-            if(myInLine[0] == '>')
-            {
-                continue;
-            }
-            else
-            {
-                string seq = myInLine;
-                que_sequences.push_back(seq);
-                totSizeB += seq.size();
-
-                if(seq.size() > largestB)
-                {
-                    largestB = seq.size();
-                }
-            }
-        }
-
-        quer_file.close();
+        std::cerr << "FATAL: ref_sequences.size() != que_sequences.size()" << std::endl << std::flush;
+        exit (-2);
     }
 
     // ------------------------------------------------------------------------------------ //
