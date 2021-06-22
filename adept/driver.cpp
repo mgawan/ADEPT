@@ -590,8 +590,6 @@ driver::cleanup()
     sycl::free(que_cstr, curr_stream->stream);
 
     dealloc_gpu_mem();
-
-    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -606,8 +604,6 @@ driver::allocate_gpu_mem()
     query_end_gpu =    sycl::malloc_device<short> (batch_size, curr_stream->stream);
     query_start_gpu =  sycl::malloc_device<short> (batch_size, curr_stream->stream);
     scores_gpu =       sycl::malloc_device<short> (batch_size, curr_stream->stream);
-
-    curr_stream->stream.wait_and_throw();
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -668,7 +664,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
     int batch_last_it = batch_size;
 
     // minimum 20 or 5% iterations
-    int iter_20 = std::max(20, iterations/20);
+    int iter_20 = std::max(5, iterations/20);
 
     if(left_over > 0)
         batch_last_it = left_over;
@@ -727,7 +723,8 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
             std::cout << "Cumulative Rkernel time: " << ktimes[1] << "s" << std::endl;
             std::cout << "Cumulative H2D time: " << ktimes[2] << "s" << std::endl;
             std::cout << "Cumulative D2Hmid time: " << ktimes[3] << "s" << std::endl;
-            std::cout << "Cumulative D2H time: " << d2h_time << "s" << std::endl << std::endl;
+            std::cout << "Cumulative D2H time: " << d2h_time << "s" << std::endl; 
+            std::cout << std::endl << std::flush;
         }
 #endif // ADEPT_INSTR
     }

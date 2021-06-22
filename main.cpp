@@ -34,8 +34,8 @@
 
 // constants
 constexpr int MAX_REF_LEN    =  1200;
-constexpr int MAX_QUERY_LEN  =   300;
-constexpr int BATCH_SIZE     = 50000;
+constexpr int MAX_QUERY_LEN  =   256;
+constexpr int BATCH_SIZE     = 100000;
 constexpr int GPU_ID         =     0;
 
 constexpr unsigned int DATA_SIZE = BATCH_SIZE; // std::numeric_limits<unsigned int>::max();
@@ -104,7 +104,7 @@ main(int argc, char* argv[])
     // extract reference sequences
     if(ref_file.is_open() && quer_file.is_open())
     {
-        while(getline(ref_file, lineR) && ref_sequences.size() <= DATA_SIZE)
+        while(getline(ref_file, lineR))
         {
             getline(quer_file, lineQ);
 
@@ -135,6 +135,9 @@ main(int argc, char* argv[])
                         largestB = lineQ.length();
                 }
             }
+
+            if (ref_sequences.size() == DATA_SIZE)
+                break;
         }
 
         ref_file.close();
