@@ -110,8 +110,6 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
 
     myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
 
-    item.barrier(sycl::access::fence_space::local_space);
-
     if(laneId == 0)
         locTots[warpId] = myVal;
     if(laneId == 0)
@@ -148,8 +146,6 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myIndex  = myInd;
         myIndex2 = myInd2;
     }
-
-    item.barrier(sycl::access::fence_space::local_space);
 
     return myVal;
 }
@@ -399,8 +395,6 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 
         item.barrier(sycl::access::fence_space::local_space);// why do I need this? commenting it out breaks it
     }
-
-    item.barrier(sycl::access::fence_space::local_space);
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 

@@ -80,7 +80,11 @@ for i in $(seq 2 2); do
     
     advisor --report=roofline --with-stack --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/roofline.html;
 
+    advisor --report=summary --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/summary;
+
     advisor --report=survey --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/survey;
+
+    advisor --report=top-down --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/top-down;
 
     advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
 
@@ -90,9 +94,11 @@ for i in $(seq 2 2); do
 
     advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/map;
 
-    advisor --collect=summary --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
 
-    advisor --report=summary --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/summary;
+    advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/dependencies;
+
+    advisor --report=joined --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/dependencies;
 
 done
 

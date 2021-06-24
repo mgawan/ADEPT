@@ -63,7 +63,7 @@ REF=../test-data/expected256.algn
 for i in $(seq 1 $R); do
     ALN=../test-data/dna-output-$i.out
     printf "\nRunning $i out of $R\n\n";
-    srun ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+    ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then
