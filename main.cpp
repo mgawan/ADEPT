@@ -59,8 +59,8 @@ int main(int argc, char* argv[]){
 	unsigned batch_size = ADEPT::get_batch_size(0, 300, 1200, 100);// batch size per GPU
 
   std::array<short, 4> scores = {3,-3,-6,-1};
-
- auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), batch_size);
+  int gpus_to_use = 1;
+ auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), gpus_to_use, batch_size);
  
  ofstream results_file(out_file);
  int tot_gpus = all_results.gpus;

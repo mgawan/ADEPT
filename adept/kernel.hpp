@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 #ifndef KERNEL_HPP
 #define KERNEL_HPP
 #include <cstdlib>

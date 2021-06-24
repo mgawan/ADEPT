@@ -8,7 +8,7 @@ To build:
 ```bash
 mkdir build
 cd build
-cmake ../
+cmake -DCMAKE_CXX_COMPILER=hipcc ../
 make
 ```
 To run:
