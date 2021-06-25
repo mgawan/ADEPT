@@ -82,3 +82,6 @@ configure_file(${CMAKE_CURRENT_LIST_DIR}/test_adept.sh
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/run_datasets.sh
     ${CMAKE_CURRENT_BINARY_DIR}/run_datasets @ONLY)
+
+configure_file(${CMAKE_CURRENT_LIST_DIR}/roofline_intel.sh
+    ${CMAKE_CURRENT_BINARY_DIR}/roofline_intel @ONLY)
