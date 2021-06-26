@@ -236,14 +236,17 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
     __syncthreads(); // this is needed so that all the shmem writes are completed.
 
     if(is_valid[thread_Id] && thread_Id < minSize){
-      unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
       short fVal = _prev_F + extendGap;
       short hfVal = _prev_H + startGap;
+
+    #ifndef PLATFORM_AMD
+      unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
       short valeShfl = __shfl_sync(mask, _prev_E, laneId- 1, 32);
       short valheShfl = __shfl_sync(mask, _prev_H, laneId - 1, 32);
-      //short valeShfl = __shfl(_prev_E, laneId- 1, 32);
-     // short valheShfl = __shfl(_prev_H, laneId - 1, 32);
-     
+    #else
+      short valeShfl = __shfl(_prev_E, laneId- 1, 32);
+      short valheShfl = __shfl(_prev_H, laneId - 1, 32);
+    #endif 
       short eVal=0, heVal = 0;
       // when the previous thread has phased out, get value from shmem
       if(diag >= maxSize){
@@ -261,8 +264,11 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 
       _curr_F = (fVal > hfVal) ? fVal : hfVal;
       _curr_E = (eVal > heVal) ? eVal : heVal;
+    #ifndef PLATFORM_AMD   
       short testShufll = __shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
-      //short testShufll = __shfl(_prev_prev_H, laneId - 1, 32);
+    #else
+      short testShufll = __shfl(_prev_prev_H, laneId - 1, 32);
+    #endif
       short final_prev_prev_H = 0;
 
       if(diag >= maxSize){

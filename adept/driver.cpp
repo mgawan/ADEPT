@@ -2,6 +2,7 @@
 #include "kernel.hpp"
 #include "driver.hpp"
 #include <thread>
+#include "timer.hpp"
 
 #define errCheck(ans)                                                                  \
 {                                                                                    \
@@ -280,17 +281,21 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
 		its_ref_vecs.push_back(temp_ref);
 		its_que_vecs.push_back(temp_que);
+		std::cout<<"Total Alignments in iteration:"<<i<<" on gpu"<<my_cpu_id<<" is:"<<temp_ref.size()<<std::endl;
 	}
 
+	timer loop_timer;
+	loop_timer.timer_start();
 	driver sw_driver_loc;
 	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
-		std::cout<<"iteration:"<<i<<" on gpu:"<<dev_id<<std::endl;
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
 		sw_driver_loc.dth_synch();
 	}
-
+	loop_timer.timer_end();
+	auto total_time= loop_timer.get_total_time();
+	std::cout<<"Total time taken while on dev:"<<dev_id<<" is:"<<total_time<<std::endl;
 	auto loc_results = sw_driver_loc.get_alignments();// results for all iterations are available now
 	sw_driver_loc.cleanup();
 	return loc_results;
