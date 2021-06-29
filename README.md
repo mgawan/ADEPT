@@ -19,7 +19,7 @@ Committing the working ADEPT SYCL code with multiGPU support tested on:
 
 ```bash
 module use /global/cfs/cdirs/mpccc/dwdoerf/cori-gpu/modulefiles
-module load dpc++/12.12.0.0-20201209
+module load dpc++
 module load cgpu
 module load cuda
 ```
