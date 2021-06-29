@@ -70,7 +70,7 @@ int main(int argc, char* argv[]){
   for(int k = 0; k < this_count; k++){
     results_file<<all_results.results[gpus].top_scores[k]<<"\t"<<all_results.results[gpus].ref_begin[k]<<"\t"<<all_results.results[gpus].ref_end[k] - 1<<
     "\t"<<all_results.results[gpus].query_begin[k]<<"\t"<<all_results.results[gpus].query_end[k] - 1<<endl;
-  }
+    }
   }
 
   for(int i = 0; i < tot_gpus; i++)

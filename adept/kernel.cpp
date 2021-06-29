@@ -312,9 +312,9 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 }
 
 __global__ void
-kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
+kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
                     unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix)
+                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse)
 {
   int block_Id  = blockIdx.x;
   int thread_Id = threadIdx.x;
@@ -346,30 +346,48 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
       seqA       = seqA_array + prefix_lengthA[block_Id - 1];
       seqB       = seqB_array + prefix_lengthB[block_Id - 1];
   }
+  
+  if(reverse == true){
+    lengthSeqA = seqA_align_end[block_Id];
+    lengthSeqB = seqB_align_end[block_Id];
+  }
   // what is the max length and what is the min length
   unsigned maxSize = lengthSeqA > lengthSeqB ? lengthSeqA : lengthSeqB;
   unsigned minSize = lengthSeqA < lengthSeqB ? lengthSeqA : lengthSeqB;
 
 // shared memory space for storing longer of the two strings
-  memset(is_valid, 0, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 0;
+  }
+
   is_valid += minSize;
-  memset(is_valid, 1, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 1;
+  }
+
   is_valid += minSize;
-  memset(is_valid, 0, minSize);
+  for(int p = thread_Id; p < minSize; p+=32){
+    is_valid[p] = 0;
+  }
 
   char myColumnChar;
   // the shorter of the two strings is stored in thread registers
-  if(lengthSeqA < lengthSeqB)
-  {
-    if(thread_Id < lengthSeqA)
-      myColumnChar = seqA[thread_Id];  // read only once
-    longer_seq = seqB;
-  }
-  else
-  {
-    if(thread_Id < lengthSeqB)
-      myColumnChar = seqB[thread_Id];
-    longer_seq = seqA;
+  if(lengthSeqA < lengthSeqB){
+    if(thread_Id < lengthSeqA){
+      if(reverse == true)
+        myColumnChar = seqA[(lengthSeqA - 1) - thread_Id];
+      else
+        myColumnChar = seqA[thread_Id];  // read only once
+      longer_seq = seqB;
+    }
+  }else{
+    if(thread_Id < lengthSeqB){
+      if(reverse == true)
+        myColumnChar = seqB[(lengthSeqB - 1) - thread_Id];
+      else
+        myColumnChar = seqB[thread_Id];
+        longer_seq = seqA;
+    }
   }
 
   __syncthreads(); // this is required here so that complete sequence has been copied to shared memory
@@ -409,130 +427,110 @@ kernel::sequence_aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_
 
   for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
   {  // iterate for the number of anti-diagonals
+    is_valid = is_valid - (diag < minSize || diag >= maxSize); //move the pointer to left by 1 if cnd true
 
-      is_valid = is_valid - (diag < minSize || diag >= maxSize); //move the pointer to left by 1 if cnd true
+    _temp_Val = _prev_H; // value exchange happens here to setup registers for next iteration
+    _prev_H = _curr_H;
+    _curr_H = _prev_prev_H;
+    _prev_prev_H = _temp_Val;
+    _curr_H = 0;
 
-       _temp_Val = _prev_H; // value exchange happens here to setup registers for next iteration
-       _prev_H = _curr_H;
-       _curr_H = _prev_prev_H;
-       _prev_prev_H = _temp_Val;
-       _curr_H = 0;
+    _temp_Val = _prev_E;
+    _prev_E = _curr_E;
+    _curr_E = _prev_prev_E;
+    _prev_prev_E = _temp_Val;
+    _curr_E = 0;
 
-      _temp_Val = _prev_E;
-      _prev_E = _curr_E;
-      _curr_E = _prev_prev_E;
-      _prev_prev_E = _temp_Val;
-      _curr_E = 0;
-
-      _temp_Val = _prev_F;
-      _prev_F = _curr_F;
-      _curr_F = _prev_prev_F;
-      _prev_prev_F = _temp_Val;
-      _curr_F = 0;
+    _temp_Val = _prev_F;
+    _prev_F = _curr_F;
+    _curr_F = _prev_prev_F;
+    _prev_prev_F = _temp_Val;
+    _curr_F = 0;
 
 
-      if(laneId == 31)
-      { // if you are the last thread in your warp then spill your values to shmem
-        sh_prev_E[warpId] = _prev_E;
-        sh_prev_H[warpId] = _prev_H;
-        sh_prev_prev_H[warpId] = _prev_prev_H;
+    if(laneId == 31){ // if you are the last thread in your warp then spill your values to shmem
+      sh_prev_E[warpId] = _prev_E;
+      sh_prev_H[warpId] = _prev_H;
+      sh_prev_prev_H[warpId] = _prev_prev_H;
+    }
+
+    if(diag >= maxSize){ // if you are invalid in this iteration, spill your values to shmem
+      local_spill_prev_E[thread_Id] = _prev_E;
+      local_spill_prev_H[thread_Id] = _prev_H;
+      local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
+    }
+
+    __syncthreads(); // this is needed so that all the shmem writes are completed.
+
+    if(is_valid[thread_Id] && thread_Id < minSize)
+    {
+      unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
+
+      short fVal = _prev_F + extendGap;
+      short hfVal = _prev_H + startGap;
+      short valeShfl = __shfl_sync(mask, _prev_E, laneId- 1, 32);
+      short valheShfl = __shfl_sync(mask, _prev_H, laneId - 1, 32);
+
+      short eVal=0, heVal = 0;
+
+      if(diag >= maxSize){ // when the previous thread has phased out, get value from shmem
+        eVal = local_spill_prev_E[thread_Id - 1] + extendGap;
+        heVal = local_spill_prev_H[thread_Id - 1]+ startGap;
+      }else{
+        eVal =((warpId !=0 && laneId == 0)?sh_prev_E[warpId-1]: valeShfl) + extendGap;
+        heVal =((warpId !=0 && laneId == 0)?sh_prev_H[warpId-1]:valheShfl) + startGap;
       }
 
-      if(diag >= maxSize)
-      { // if you are invalid in this iteration, spill your values to shmem
-        local_spill_prev_E[thread_Id] = _prev_E;
-        local_spill_prev_H[thread_Id] = _prev_H;
-        local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
+      if(warpId == 0 && laneId == 0){// make sure that values for lane 0 in warp 0 is not undefined
+          eVal = 0;
+          heVal = 0;
       }
+      _curr_F = (fVal > hfVal) ? fVal : hfVal;
+      _curr_E = (eVal > heVal) ? eVal : heVal;
 
-      __syncthreads(); // this is needed so that all the shmem writes are completed.
+      short testShufll = __shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
+      short final_prev_prev_H = 0;
 
-      if(is_valid[thread_Id] && thread_Id < minSize)
-      {
-        unsigned mask  = __ballot_sync(__activemask(), (is_valid[thread_Id] &&( thread_Id < minSize)));
+      if(diag >= maxSize){
+        final_prev_prev_H = local_spill_prev_prev_H[thread_Id - 1];
+      }else{
+        final_prev_prev_H =(warpId !=0 && laneId == 0)?sh_prev_prev_H[warpId-1]:testShufll;
+      }
+      
+      if(warpId == 0 && laneId == 0) final_prev_prev_H = 0;
+      char to_comp = reverse == true ? longer_seq[maxSize -i] : longer_seq[i - 1];
+      short mat_index_q = sh_aa_encoding[(int)to_comp];//encoding_matrix
+      short mat_index_r = sh_aa_encoding[(int)myColumnChar];
 
-        short fVal = _prev_F + extendGap;
-        short hfVal = _prev_H + startGap;
-        short valeShfl = __shfl_sync(mask, _prev_E, laneId- 1, 32);
-        short valheShfl = __shfl_sync(mask, _prev_H, laneId - 1, 32);
+      short add_score = sh_aa_scoring[mat_index_q*24 + mat_index_r]; // doesnt really matter in what order these indices are used, since the scoring table is symmetrical
 
-        short eVal=0, heVal = 0;
+      short diag_score = final_prev_prev_H + add_score;
 
-        if(diag >= maxSize) // when the previous thread has phased out, get value from shmem
-        {
-          eVal = local_spill_prev_E[thread_Id - 1] + extendGap;
-          heVal = local_spill_prev_H[thread_Id - 1]+ startGap;
-        }
-        else
-        {
-          eVal =((warpId !=0 && laneId == 0)?sh_prev_E[warpId-1]: valeShfl) + extendGap;
-          heVal =((warpId !=0 && laneId == 0)?sh_prev_H[warpId-1]:valheShfl) + startGap;
-        }
+      _curr_H = findMaxFour(diag_score, _curr_F, _curr_E, 0);
 
-         if(warpId == 0 && laneId == 0) // make sure that values for lane 0 in warp 0 is not undefined
-         {
-            eVal = 0;
-            heVal = 0;
-         }
-        _curr_F = (fVal > hfVal) ? fVal : hfVal;
-        _curr_E = (eVal > heVal) ? eVal : heVal;
-
-        short testShufll = __shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
-        short final_prev_prev_H = 0;
-        if(diag >= maxSize)
-        {
-          final_prev_prev_H = local_spill_prev_prev_H[thread_Id - 1];
-        }
-        else
-        {
-          final_prev_prev_H =(warpId !=0 && laneId == 0)?sh_prev_prev_H[warpId-1]:testShufll;
-        }
-
-
-        if(warpId == 0 && laneId == 0) final_prev_prev_H = 0;
-
-        short mat_index_q = sh_aa_encoding[(int)longer_seq[i-1]];//encoding_matrix
-        short mat_index_r = sh_aa_encoding[(int)myColumnChar];
-
-        short add_score = sh_aa_scoring[mat_index_q*24 + mat_index_r]; // doesnt really matter in what order these indices are used, since the scoring table is symmetrical
-
-        short diag_score = final_prev_prev_H + add_score;
-
-        _curr_H = findMaxFour(diag_score, _curr_F, _curr_E, 0);
-        thread_max_i = (thread_max >= _curr_H) ? thread_max_i : i;
-        thread_max_j = (thread_max >= _curr_H) ? thread_max_j : thread_Id + 1;
-        thread_max   = (thread_max >= _curr_H) ? thread_max : _curr_H;
-        i++;
-     }
-
+      int _i = reverse == true ? maxSize - i : i;
+      int _j = reverse == true ? minSize - thread_Id - 1: thread_Id + 1; 
+      thread_max_i = (thread_max >= _curr_H) ? thread_max_i : _i;
+      thread_max_j = (thread_max >= _curr_H) ? thread_max_j : _j;
+      thread_max   = (thread_max >= _curr_H) ? thread_max : _curr_H;
+      i++;
+    }
     __syncthreads(); // why do I need this? commenting it out breaks it
-
   }
   __syncthreads();
 
-  thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j,
-                                  minSize, false);  // thread 0 will have the correct values
+  thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse);  // thread 0 will have the correct values
 
-
-
-
-  if(thread_Id == 0)
-  {
-
-
-      if(lengthSeqA < lengthSeqB)
-      {
-        seqB_align_end[block_Id] = thread_max_i;
-        seqA_align_end[block_Id] = thread_max_j;
-        top_scores[block_Id] = thread_max;
-    }
-      else
-      {
+  if(thread_Id == 0){
+    if(lengthSeqA < lengthSeqB){
+      seqB_align_end[block_Id] = thread_max_i;
+      seqA_align_end[block_Id] = thread_max_j;
+      top_scores[block_Id] = thread_max;
+    }else{
       seqA_align_end[block_Id] = thread_max_i;
       seqB_align_end[block_Id] = thread_max_j;
       top_scores[block_Id] = thread_max;
-      }
-
+    }
   }
 }
 
