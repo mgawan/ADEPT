@@ -34,7 +34,7 @@
 
 // constants
 constexpr int MAX_REF_LEN    =  1200;
-constexpr int MAX_QUERY_LEN  =   256;
+constexpr int MAX_QUERY_LEN  =   300;
 constexpr int BATCH_SIZE     = 50000;
 constexpr int GPU_ID         =     0;
 
