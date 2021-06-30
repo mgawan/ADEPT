@@ -312,9 +312,7 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 }
 
 __global__ void
-kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                    unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse)
+kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end, short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse)
 {
   int block_Id  = blockIdx.x;
   int thread_Id = threadIdx.x;
@@ -521,15 +519,28 @@ kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 
   thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse);  // thread 0 will have the correct values
 
-  if(thread_Id == 0){
-    if(lengthSeqA < lengthSeqB){
-      seqB_align_end[block_Id] = thread_max_i;
-      seqA_align_end[block_Id] = thread_max_j;
-      top_scores[block_Id] = thread_max;
-    }else{
-      seqA_align_end[block_Id] = thread_max_i;
-      seqB_align_end[block_Id] = thread_max_j;
-      top_scores[block_Id] = thread_max;
+  if(reverse == true){
+      if(thread_Id == 0){
+        if(lengthSeqA < lengthSeqB){
+          seqB_align_begin[block_Id] = (thread_max_i);
+          seqA_align_begin[block_Id] = (thread_max_j);
+        }
+        else{
+          seqA_align_begin[block_Id] = (thread_max_i);
+          seqB_align_begin[block_Id] = (thread_max_j);
+        }
+      }
+  }else{  
+    if(thread_Id == 0){
+      if(lengthSeqA < lengthSeqB){
+          seqB_align_end[block_Id] = thread_max_i;
+          seqA_align_end[block_Id] = thread_max_j;
+          top_scores[block_Id] = thread_max;
+      }else{
+        seqA_align_end[block_Id] = thread_max_i;
+        seqB_align_end[block_Id] = thread_max_j;
+        top_scores[block_Id] = thread_max;
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 #include <vector>
 #include <string>
-//#include <omp.h>
+
 
 namespace ADEPT{
 	enum ALG_TYPE{SW, NW};
@@ -44,6 +44,8 @@ namespace ADEPT{
 			unsigned* offset_ref_gpu, *offset_query_gpu;
 			char *ref_cstr_d, *que_cstr_d;
 			aln_results results;
+			short *d_encoding_matrix, *d_scoring_matrix, *scoring_matrix_cpu;
+			short *encoding_matrix;
 
 			void allocate_gpu_mem();
 			void dealloc_gpu_mem();
@@ -63,6 +65,7 @@ namespace ADEPT{
 			void kernel_synch();
 			void dth_synch();
 			void cleanup();
+			void set_gap_scores(short _gap_open, short _gap_extend);
 	};
 
 	aln_results thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[]);

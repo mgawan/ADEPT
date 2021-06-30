@@ -46,13 +46,26 @@ void ADEPT::aln_results::free_results(){
     cudaErrchk(cudaFreeHost(query_begin));
     cudaErrchk(cudaFreeHost(query_end));
     cudaErrchk(cudaFreeHost(top_scores));
-
 }
 void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size,  int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
+	}else{
+		scoring_matrix_cpu = scores;
+		short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           23,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,20,4,3,6,
+                           13,7,8,9,0,11,10,12,2,0,14,5,
+                           1,15,16,0,19,17,22,18,21};
+		cudaErrchk(cudaMallocHost(&encoding_matrix, sizeof(short) * ENCOD_MAT_SIZE));
+		for(int i = 0; i < ENCOD_MAT_SIZE; i++){
+			encoding_matrix[i] = temp_encode[i];
+		}
 	}
+
 	gpu_id = _gpu_id;
 	cudaSetDevice(gpu_id);
 	curr_stream = new adept_stream(gpu_id);
@@ -118,11 +131,20 @@ void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::s
 	size_t   ShmemBytes = totShmem + alignmentPad;
 	if(ShmemBytes > 48000)
         cudaFuncSetAttribute(kernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
-	kernel::dna_kernel<<<batch_size, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
+	if(sequence == SEQ_TYPE::AA){
+		kernel::aa_kernel<<<batch_size, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, gap_start, gap_extend, d_scoring_matrix, d_encoding_matrix, false);
+	}else{	
+		kernel::dna_kernel<<<batch_size, minSize, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, false);
+	}
 	mem_copies_dth_mid(ref_end_gpu, results.ref_end , query_end_gpu, results.query_end, res_offset);
 	cudaStreamSynchronize(curr_stream->stream);
 	int new_length = get_new_min_length(results.ref_end, results.query_end, batch_size);
-	kernel::dna_kernel<<<batch_size, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
+
+	if(sequence == SEQ_TYPE::AA){
+		kernel::aa_kernel<<<batch_size, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, gap_start, gap_extend, d_scoring_matrix, d_encoding_matrix, true);
+	}else{
+		kernel::dna_kernel<<<batch_size, new_length, ShmemBytes, curr_stream->stream>>>(ref_cstr_d, que_cstr_d, offset_ref_gpu, offset_query_gpu, ref_start_gpu, ref_end_gpu, query_start_gpu, query_end_gpu, scores_gpu, match_score, mismatch_score, gap_start, gap_extend, true);
+	}
 	cudaErrchk(cudaEventRecord(curr_stream->kernel_event, curr_stream->stream));
 }
 
@@ -147,6 +169,11 @@ void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, u
     cudaErrchk(cudaMemcpyAsync(offset_query_gpu, offsetB_h, (batch_size) * sizeof(int), cudaMemcpyHostToDevice, curr_stream->stream));
     cudaErrchk(cudaMemcpyAsync(strA_d, strA, totalLengthA * sizeof(char), cudaMemcpyHostToDevice, curr_stream->stream));
     cudaErrchk(cudaMemcpyAsync(strB_d, strB, totalLengthB * sizeof(char), cudaMemcpyHostToDevice, curr_stream->stream));
+
+	if(sequence == SEQ_TYPE::AA){
+	  cudaErrchk(cudaMemcpyAsync(d_encoding_matrix, encoding_matrix, ENCOD_MAT_SIZE * sizeof(short), cudaMemcpyHostToDevice, curr_stream->stream));
+      cudaErrchk(cudaMemcpyAsync(d_scoring_matrix, scoring_matrix_cpu, SCORE_MAT_SIZE * sizeof(short), cudaMemcpyHostToDevice, curr_stream->stream));
+	}
 }
 
 void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu, int res_offset){
@@ -186,6 +213,10 @@ void driver::dealloc_gpu_mem(){
 	cudaErrchk(cudaFree(query_end_gpu));
 	cudaErrchk(cudaFree(ref_cstr_d));
 	cudaErrchk(cudaFree(que_cstr_d));
+	if(sequence == SEQ_TYPE::AA){
+		cudaErrchk(cudaFree(d_scoring_matrix));
+		cudaErrchk(cudaFree(d_encoding_matrix));
+	}
 }
 
 void driver::cleanup(){
@@ -197,6 +228,9 @@ void driver::cleanup(){
 	cudaStreamDestroy(curr_stream->stream);
 	cudaEventDestroy(curr_stream->kernel_event);
 	cudaEventDestroy(curr_stream->data_event);
+	if(sequence == SEQ_TYPE::AA){
+		cudaErrchk(cudaFreeHost(encoding_matrix));
+	}
 }
 
 void driver::allocate_gpu_mem(){
@@ -207,6 +241,11 @@ void driver::allocate_gpu_mem(){
     cudaErrchk(cudaMalloc(&query_end_gpu, (batch_size) * sizeof(short)));
     cudaErrchk(cudaMalloc(&query_start_gpu, (batch_size) * sizeof(short)));
     cudaErrchk(cudaMalloc(&scores_gpu, (batch_size) * sizeof(short)));
+
+	if(sequence == SEQ_TYPE::AA){
+		cudaErrchk(cudaMalloc(&d_encoding_matrix, ENCOD_MAT_SIZE * sizeof(short)));
+        cudaErrchk(cudaMalloc(&d_scoring_matrix, SCORE_MAT_SIZE * sizeof(short)));
+	}
 }
 
 size_t ADEPT::get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem){
@@ -246,6 +285,10 @@ void driver::dth_synch(){
 	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
 }
 
+void driver::set_gap_scores(short _gap_open, short _gap_extend){
+	gap_start = _gap_open;
+	gap_extend = _gap_extend;
+}
 aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[]){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
