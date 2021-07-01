@@ -29,6 +29,7 @@
 #include <string>
 #include <thread>
 #include <CL/sycl.hpp>
+#include "instrument.hpp"
 
 // set shared memory setting to 48KB
 const int SHMEM_BYTES = 48000;
@@ -100,6 +101,8 @@ private:
     char *ref_cstr_d, *que_cstr_d;
 
     aln_results results;
+    short *d_encoding_matrix, *d_scoring_matrix, *scoring_matrix_cpu;
+    short *encoding_matrix;
 
     void allocate_gpu_mem();
     void dealloc_gpu_mem();
@@ -116,7 +119,7 @@ public:
     driver() = default;
 
     double initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *dev); // each adept_dna object will have a unique cuda stream
-    std::array<double, 4> kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset = 0);
+    std::array<double, 4> kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
     double mem_cpy_dth(int offset = 0);
     aln_results get_alignments();
     bool kernel_done();
@@ -124,12 +127,13 @@ public:
     void kernel_synch();
     void dth_synch();
     void cleanup();
+    void set_gap_scores(short _gap_open, short _gap_extend);
 };
 
 
-aln_results thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id);
+aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id);
     
-all_alns multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_ = -1);
+all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_ = -1);
 
 size_t get_batch_size(const sycl::device &device, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 }

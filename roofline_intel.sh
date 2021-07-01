@@ -76,7 +76,7 @@ make install -j 8
 for i in $(seq 2 2); do
     printf "\nRunning dataset: $i out of 2\n\n"; 
     # ALIGNMENTS
-    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
     
     advisor --report=roofline --with-stack --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/roofline.html;
 
@@ -86,15 +86,15 @@ for i in $(seq 2 2); do
 
     advisor --report=top-down --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/top-down;
 
-    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
 
     advisor --report=hotspots --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/hotspots;
 
-    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
 
     advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/map;
 
-    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/adept_test /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
 
     advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/dependencies;
 

@@ -45,7 +45,7 @@ namespace Akernel
 {
 
 SYCL_EXTERNAL inline short
-warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item);
+warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item);
 
  short
 warpReduceMax(short val, int lengthSeqB);
@@ -69,54 +69,38 @@ traceBack(short current_i, short current_j, short* seqA_align_begin,
           short* I_j, int lengthSeqB, int lengthSeqA, int* diagOffset);
 
 SYCL_EXTERNAL void 
-dna_kernel(        char* seqA_array, 
-                   char* seqB_array, int* prefix_lengthA,
-                   int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                   short* seqB_align_begin, short* seqB_align_end, short* top_scores, 
-                   short matchScore, short misMatchScore, short startGap, short extendGap, 
-                   bool reverse, sycl::nd_item<1> &item, 
-                   char  *is_valid_array,
-                   short *sh_prev_E,
-                   short *sh_prev_H,
-                   short *sh_prev_prev_H,
-                   short *local_spill_prev_E,
-                   short *local_spill_prev_H,
-                   short *local_spill_prev_prev_H,
-                   short *locTots,
-                   short *locInds,
-                   short *locInds2);
+dna_kernel(char* seqA_array, 
+                char* seqB_array, int* prefix_lengthA,
+                int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, 
+                short matchScore, short misMatchScore, short startGap, short extendGap, 
+                bool reverse, sycl::nd_item<1> &item, 
+                char  *is_valid_array,
+                short *sh_prev_E,
+                short *sh_prev_H,
+                short *sh_prev_prev_H,
+                short *local_spill_prev_E,
+                short *local_spill_prev_H,
+                short *local_spill_prev_prev_H,
+                short *locTots,
+                short *locInds,
+                short *locInds2);
 
 SYCL_EXTERNAL void
-sequence_aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
-                    int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, sycl::nd_item<1> &item, 
-                    char *is_valid_array,
-                    short *sh_prev_E,
-                    short *sh_prev_H,
-                    short *sh_prev_prev_H,
-                    short *local_spill_prev_E,
-                    short *local_spill_prev_H,
-                    short *local_spill_prev_prev_H,
-                    short *sh_aa_encoding, 
-                    short *sh_aa_scoring,
-                    short *locTots,
-                    short *locInds,
-                    short *locInds2);
-
-SYCL_EXTERNAL void
-sequence_aa_reverse(char* seqA_array, char* seqB_array, int* prefix_lengthA,
-                    int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, sycl::nd_item<1> &item, 
-                    char *is_valid_array,
-                    short *sh_prev_E,
-                    short *sh_prev_H,
-                    short *sh_prev_prev_H,
-                    short *local_spill_prev_E,
-                    short *local_spill_prev_H,
-                    short *local_spill_prev_prev_H,
-                    short *sh_aa_encoding, 
-                    short *sh_aa_scoring,
-                    short *locTots,
-                    short *locInds,
-                    short *locInds2);
+aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
+                int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short*encoding_matrix, bool reverse,
+                sycl::nd_item<1> &item, 
+                char *is_valid_array,
+                short *sh_prev_E,
+                short *sh_prev_H,
+                short *sh_prev_prev_H,
+                short *local_spill_prev_E,
+                short *local_spill_prev_H,
+                short *local_spill_prev_prev_H,
+                short *sh_aa_encoding, 
+                short *sh_aa_scoring,
+                short *locTots,
+                short *locInds,
+                short *locInds2);
 }

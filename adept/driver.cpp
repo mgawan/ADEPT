@@ -33,12 +33,23 @@ using namespace ADEPT;
 // warp size
 static constexpr size_t warpSize = 32;
 
-// ------------------------------------------------------------------------------------ //
-
-/* This is the class used to name the kernel for the runtime.
+namespace DNA
+{
+/* Classes used to name the kernels for the runtime.
  * This must be done when the kernel is expressed as a lambda. */
 class Adept_F;
 class Adept_R;
+}
+
+namespace AA
+{
+/* Classes used to name the kernels for the runtime.
+ * This must be done when the kernel is expressed as a lambda. */
+class Adept_F;
+class Adept_R;
+}
+
+// ------------------------------------------------------------------------------------ //
 
 int 
 getMaxLength (std::vector<std::string> v)
@@ -91,7 +102,7 @@ struct ADEPT::adept_stream
     }
 };
 
-// ------------------------------------------------------------------------------------ //
+
 
 void 
 ADEPT::aln_results::free_results()
@@ -110,11 +121,6 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 {
     algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 
-    if(sequence == SEQ_TYPE::DNA)
-    {
-        match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
-    }
-
     device = dev;
 
     if (dev == nullptr)
@@ -128,6 +134,27 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
     {
         // using the device here
         curr_stream = new adept_stream(dev);
+    }
+
+    if(sequence == SEQ_TYPE::DNA)
+    {
+        match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
+    }
+    else
+    {
+        scoring_matrix_cpu = scores;
+        short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           23,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                           0,0,0,0,0,0,0,0,0,0,20,4,3,6,
+                           13,7,8,9,0,11,10,12,2,0,14,5,
+                           1,15,16,0,19,17,22,18,21};
+        
+        encoding_matrix = sycl::malloc_host<short>(ENCOD_MAT_SIZE, curr_stream->stream);
+
+        for(int i = 0; i < ENCOD_MAT_SIZE; i++)
+            encoding_matrix[i] = temp_encode[i];
     }
 
     // Print out the device information used for the kernel code.
@@ -166,7 +193,7 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 // ------------------------------------------------------------------------------------ //
 
 std::array<double, 4>
-driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset)
+driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset)
 {
     if(ref_seqs.size() < batch_size)
         batch_size = ref_seqs.size();
@@ -216,18 +243,12 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     int alignmentPad = 4 + (4 - totShmem % 4);
     size_t   ShmemBytes = totShmem + alignmentPad;
 
-    // CUDA specific shared memory setting
-#if defined(__NVCC__) || defined(__CUDACC__)
-    if(ShmemBytes > SHMEM_BYTES)
-        cudaFuncSetAttribute(Akernel::dna_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ShmemBytes);
-#endif // __NVCC__ or __CUDACC__
-
 
     // marker for forward kernel
     MARK_START(fwd_time);
     static thread_local double f_kernel_time = 0;
 
-    // queue the forward Smith Waterman kernel
+    // queue the forward kernel
     auto f_kernel = curr_stream->stream.submit([&](sycl::handler &h)
     {
         //
@@ -284,6 +305,16 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
                        sycl::access::target::local>
             local_spill_prev_prev_H(sycl::range(1024), h);
 
+        // sh_aa_encoding
+        sycl::accessor<short, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
+
+        // sh_aa_scoring
+        sycl::accessor<short, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
+
         //
         // local variables inside the lambda for access
         //
@@ -300,26 +331,55 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         auto mismatch_score_loc = mismatch_score;
         auto gap_start_loc = gap_start;
         auto gap_extend_loc = gap_extend;
+        auto scoring_matrix_gpu_loc = d_scoring_matrix;
+        auto encoding_matrix_gpu_loc = d_encoding_matrix;
 
-        //
-        // DNA kernel forward
-        //
-        h.parallel_for<class Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
+        if (sequence == SEQ_TYPE::AA)
         {
-            Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, false, 
-            item, 
-            dyn_shmem.get_pointer(), 
-            sh_prev_E.get_pointer(),
-            sh_prev_H.get_pointer(),
-            sh_prev_prev_H.get_pointer(),
-            local_spill_prev_E.get_pointer(),
-            local_spill_prev_H.get_pointer(),
-            local_spill_prev_prev_H.get_pointer(),
-            locTots.get_pointer(),
-            locInds.get_pointer(),
-            locInds2.get_pointer()
-            );
-        });
+            //
+            // Protein kernel forward
+            //
+            h.parallel_for<class AA::Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            {
+                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc,    query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, scoring_matrix_gpu_loc, encoding_matrix_gpu_loc, false, 
+                item,
+                dyn_shmem.get_pointer(),
+                sh_prev_E.get_pointer(), 
+                sh_prev_H.get_pointer(), 
+                sh_prev_prev_H.get_pointer(), 
+                local_spill_prev_E.get_pointer(), 
+                local_spill_prev_H.get_pointer(), 
+                local_spill_prev_prev_H.get_pointer(),
+                sh_aa_encoding.get_pointer(),
+                sh_aa_scoring.get_pointer(),
+                locTots.get_pointer(), 
+                locInds.get_pointer(), 
+                locInds2.get_pointer()
+                );
+            });
+        }
+        else
+        {
+            //
+            // DNA kernel forward
+            //
+            h.parallel_for<class DNA::Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            {
+                Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc,   query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, false, 
+                item, 
+                dyn_shmem.get_pointer(), 
+                sh_prev_E.get_pointer(),
+                sh_prev_H.get_pointer(),
+                sh_prev_prev_H.get_pointer(),
+                local_spill_prev_E.get_pointer(),
+                local_spill_prev_H.get_pointer(),
+                local_spill_prev_prev_H.get_pointer(),
+                locTots.get_pointer(),
+                locInds.get_pointer(),
+                locInds2.get_pointer()
+                );
+            });
+        }
     });
 
     // stream wait
@@ -338,7 +398,7 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
     MARK_START(rev_time);
     static thread_local double r_kernel_time = 0;
 
-    // queue the reverse Smith Waterman kernel
+    // queue the reverse kernel
     auto r_kernel = curr_stream->stream.submit([&](sycl::handler &h)
     {
         //
@@ -395,6 +455,16 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
                        sycl::access::target::local>
             local_spill_prev_prev_H(sycl::range(1024), h);
 
+        // sh_aa_encoding
+        sycl::accessor<short, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
+
+        // sh_aa_scoring
+        sycl::accessor<short, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+            sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
+
         //
         // local variables inside the lambda for access
         //
@@ -411,26 +481,55 @@ driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string
         auto mismatch_score_loc = mismatch_score;
         auto gap_start_loc = gap_start;
         auto gap_extend_loc = gap_extend;
-    
-        //
-        // DNA kernel reverse
-        //
-        h.parallel_for<class Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
+        auto scoring_matrix_gpu_loc = d_scoring_matrix;
+        auto encoding_matrix_gpu_loc = d_encoding_matrix;
+
+        if (sequence == SEQ_TYPE::AA)
         {
-            Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
-            item,
-            dyn_shmem.get_pointer(),
-            sh_prev_E.get_pointer(), 
-            sh_prev_H.get_pointer(), 
-            sh_prev_prev_H.get_pointer(), 
-            local_spill_prev_E.get_pointer(), 
-            local_spill_prev_H.get_pointer(), 
-            local_spill_prev_prev_H.get_pointer(),
-            locTots.get_pointer(), 
-            locInds.get_pointer(), 
-            locInds2.get_pointer()
-            );
-        });
+            //
+            // Protein kernel forward
+            //
+            h.parallel_for<class AA::Adept_R>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            {
+                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc,    query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, scoring_matrix_gpu_loc, encoding_matrix_gpu_loc, true, 
+                item,
+                dyn_shmem.get_pointer(),
+                sh_prev_E.get_pointer(), 
+                sh_prev_H.get_pointer(), 
+                sh_prev_prev_H.get_pointer(), 
+                local_spill_prev_E.get_pointer(), 
+                local_spill_prev_H.get_pointer(), 
+                local_spill_prev_prev_H.get_pointer(),
+                sh_aa_encoding.get_pointer(),
+                sh_aa_scoring.get_pointer(),
+                locTots.get_pointer(), 
+                locInds.get_pointer(), 
+                locInds2.get_pointer()
+                );
+            });
+        }
+        else
+        {
+            //
+            // DNA kernel forward
+            //
+            h.parallel_for<class DNA::Adept_R>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            {
+                Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc,   query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
+                item, 
+                dyn_shmem.get_pointer(), 
+                sh_prev_E.get_pointer(),
+                sh_prev_H.get_pointer(),
+                sh_prev_prev_H.get_pointer(),
+                local_spill_prev_E.get_pointer(),
+                local_spill_prev_H.get_pointer(),
+                local_spill_prev_prev_H.get_pointer(),
+                locTots.get_pointer(),
+                locInds.get_pointer(),
+                locInds2.get_pointer()
+                );
+            });
+        }
     });
 
     // stream wait
@@ -484,6 +583,12 @@ driver::mem_cpy_htd(int* offset_ref_gpu, int* offset_query_gpu, int* offsetA_h, 
 
     curr_stream->stream.memcpy(strA_d, strA, totalLengthA * sizeof(char));
     curr_stream->stream.memcpy(strB_d, strB, totalLengthB * sizeof(char));
+
+    if(sequence == SEQ_TYPE::AA)
+    {
+        curr_stream->stream.memcpy(d_encoding_matrix, encoding_matrix, ENCOD_MAT_SIZE * sizeof(short));
+        curr_stream->stream.memcpy(d_scoring_matrix, scoring_matrix_cpu, SCORE_MAT_SIZE * sizeof(short));
+    }
 
     curr_stream->stream.wait_and_throw();
 
@@ -576,7 +681,11 @@ driver::dealloc_gpu_mem()
     sycl::free(ref_cstr_d, curr_stream->stream);
     sycl::free(que_cstr_d, curr_stream->stream);
 
-    curr_stream->stream.wait_and_throw();
+    if(sequence == SEQ_TYPE::AA)
+    {
+        sycl::free(d_scoring_matrix, curr_stream->stream);
+        sycl::free(d_encoding_matrix, curr_stream->stream);
+    }
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -590,6 +699,10 @@ driver::cleanup()
     sycl::free(que_cstr, curr_stream->stream);
 
     dealloc_gpu_mem();
+
+    if(sequence == SEQ_TYPE::AA)
+        sycl::free(encoding_matrix, curr_stream->stream);
+
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -604,6 +717,12 @@ driver::allocate_gpu_mem()
     query_end_gpu =    sycl::malloc_device<short> (batch_size, curr_stream->stream);
     query_start_gpu =  sycl::malloc_device<short> (batch_size, curr_stream->stream);
     scores_gpu =       sycl::malloc_device<short> (batch_size, curr_stream->stream);
+
+    if(sequence == SEQ_TYPE::AA)
+    {
+        d_encoding_matrix = sycl::malloc_device<short>(ENCOD_MAT_SIZE, curr_stream->stream);
+        d_scoring_matrix = sycl::malloc_device<short>(SCORE_MAT_SIZE, curr_stream->stream);
+    }
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -652,7 +771,15 @@ void driver::dth_synch() { curr_stream->stream.wait_and_throw(); }
 
 // ------------------------------------------------------------------------------------ //
 
-aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id)
+void driver::set_gap_scores(short _gap_open, short _gap_extend)
+{
+    gap_start = _gap_open;
+    gap_extend = _gap_extend;
+}
+
+// ------------------------------------------------------------------------------------ //
+
+aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id)
 {
     int alns_this_gpu = ref_vec.size();
     int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
@@ -741,7 +868,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
 // ------------------------------------------------------------------------------------ //
 
-all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_)
+all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_)
 {
     // get all the gpu devices
     auto gpus = sycl::device::get_devices(info::device_type::gpu);
@@ -828,3 +955,5 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
 
     return global_results;
 }
+
+// ------------------------------------------------------------------------------------ //

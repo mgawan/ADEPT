@@ -61,7 +61,7 @@ for i in $(seq 1 3); do
     REF=/global/homes/m/mhaseeb/repos/muaaz_adept/build/align_ds$i.out
     ALN=./align_ds$i.out; 
 
-    ./adept_test /global/cscratch1/sd/mhaseeb/sw-benchmarks/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
+    ./examples/multi_gpu/multi_gpu /global/cscratch1/sd/mhaseeb/sw-benchmarks/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then

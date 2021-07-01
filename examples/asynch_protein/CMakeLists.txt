@@ -5,5 +5,5 @@ project(asynch_sw LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(asynch_sw asynch_sw.cpp)
-target_link_libraries(asynch_sw adept_lib_shared)
+add_executable(asynch_protein asynch_protein.cpp)
+target_link_libraries(asynch_protein adept_lib_shared)

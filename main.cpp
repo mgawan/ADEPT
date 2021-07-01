@@ -38,7 +38,7 @@ constexpr int MAX_QUERY_LEN  =   300;
 constexpr int BATCH_SIZE     = 50000;
 constexpr int GPU_ID         =     0;
 
-constexpr unsigned int DATA_SIZE = BATCH_SIZE; // std::numeric_limits<unsigned int>::max();
+constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
 
 // scores
 constexpr short MATCH          =  3;
