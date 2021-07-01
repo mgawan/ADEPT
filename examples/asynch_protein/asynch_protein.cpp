@@ -85,10 +85,9 @@ int main(int argc, char* argv[]){
     -1 ,0 ,0 ,1 ,-3 ,3 ,4 ,-2 ,0 ,-3 ,-3 ,1 ,-1 ,-3 ,-1 ,0 ,-1 ,-3 ,-2 ,-2 ,1 ,4 ,-1 ,-4 ,
     0 ,-1 ,-1 ,-1 ,-2 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-2 ,0 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-1 ,-4 ,
     -4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,1}; // blosum 62
-
+  ADEPT::gap_scores gaps(-6, -1);
   int total_alignments = ref_sequences.size();
-  sw_driver.initialize(scores_matrix.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, 1200, 800, total_alignments, batch_size, 0);
-  sw_driver.set_gap_scores(-6, -1); // when using for protein alignments, gap scores need to be set separately.
+  sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, 1200, 800, total_alignments, batch_size, 0);
   sw_driver.kernel_launch(ref_sequences, que_sequences);
   while(sw_driver.kernel_done() != true)
     work_cpu++;

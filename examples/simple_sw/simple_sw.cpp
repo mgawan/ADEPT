@@ -59,9 +59,10 @@ int main(int argc, char* argv[]){
 	unsigned batch_size = ADEPT::get_batch_size(0, 300, 1200, 100);// batch size per GPU
 
   ADEPT::driver sw_driver;
-  std::array<short, 4> scores = {3,-3,-6,-1};
+  std::array<short, 2> scores = {3,-3};
+  ADEPT::gap_scores gaps(-6, -1);
   int total_alignments = ref_sequences.size();
-  sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, total_alignments, batch_size, 0);
+  sw_driver.initialize(scores.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, total_alignments, batch_size, 0);
   sw_driver.kernel_launch(ref_sequences, que_sequences);
   sw_driver.mem_cpy_dth();
   sw_driver.dth_synch();

@@ -60,9 +60,10 @@ int main(int argc, char* argv[]){
   int work_cpu = 0;
 
   ADEPT::driver sw_driver;
-  std::array<short, 4> scores = {3,-3,-6,-1};
+  std::array<short, 2> scores = {3,-3};
+  ADEPT::gap_scores gaps(-6, -1);
   int total_alignments = ref_sequences.size();
-  sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, total_alignments, batch_size, 0);
+  sw_driver.initialize(scores.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, total_alignments, batch_size, 0);
   sw_driver.kernel_launch(ref_sequences, que_sequences);
 
   while(sw_driver.kernel_done() != true)

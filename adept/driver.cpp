@@ -47,10 +47,10 @@ void ADEPT::aln_results::free_results(){
     cudaErrchk(cudaFreeHost(query_end));
     cudaErrchk(cudaFreeHost(top_scores));
 }
-void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size,  int _gpu_id){
+void driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size,  int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
-		match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
+		match_score = scores[0], mismatch_score = scores[1], gap_start = g_scores.open, gap_extend = g_scores.extend;
 	}else{
 		scoring_matrix_cpu = scores;
 		short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -64,6 +64,7 @@ void driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence,
 		for(int i = 0; i < ENCOD_MAT_SIZE; i++){
 			encoding_matrix[i] = temp_encode[i];
 		}
+		gap_start = g_scores.open, gap_extend = g_scores.extend;
 	}
 
 	gpu_id = _gpu_id;
@@ -285,11 +286,7 @@ void driver::dth_synch(){
 	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
 }
 
-void driver::set_gap_scores(short _gap_open, short _gap_extend){
-	gap_start = _gap_open;
-	gap_extend = _gap_extend;
-}
-aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[]){
+aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[], gap_scores gaps){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
 	if(iterations == 0) iterations = 1;
@@ -325,7 +322,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 	}
 
 	driver sw_driver_loc;
-	sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
+	sw_driver_loc.initialize(scores, gaps, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
 	for(int i = 0; i < iterations; i++){
 		std::cout<<"iteration:"<<i<<" on gpu:"<<dev_id<<std::endl;
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
@@ -338,7 +335,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 	return loc_results;
  }
 
-all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_){
+all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_){
 	if(batch_size_ == -1)
 		batch_size_ = ADEPT::get_batch_size(0, max_que_size, max_ref_size, 100);
 	int total_alignments = ref_sequences.size();
@@ -386,7 +383,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
 
   std::vector<std::thread> threads;
   auto lambda_call = [&](int my_cpu_id){
-	 global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores); 
+	 global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores, gaps); 
   };
 
   for(int tid = 0; tid < num_gpus; tid++){
