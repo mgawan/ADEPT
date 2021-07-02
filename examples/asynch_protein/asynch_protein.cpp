@@ -4,22 +4,26 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 #include <thread>
 #include <functional>
-#include <CL/sycl.hpp>
 
 constexpr int MAX_REF_LEN    =      1200;
 constexpr int MAX_QUERY_LEN  =       800;
-constexpr int BATCH_SIZE     =     50000;
 constexpr int GPU_ID         =         0;
 
-constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max(); // BATCH_SIZE;
+constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
+
+// scores
+constexpr short MATCH          =  3;
+constexpr short MISMATCH       = -3;
+constexpr short GAP_OPEN       = -6;
+constexpr short GAP_EXTEND     = -1;
 
 using namespace std;
-using namespace sycl;
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[])
+{
 
     std::cout <<                               std::endl;
     std::cout << "-----------------------" << std::endl;
@@ -98,7 +102,7 @@ int main(int argc, char* argv[]){
     size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     ADEPT::driver sw_driver;
-    std::array<short, 4> scores = {};
+    std::array<short, 2> scores = {MATCH, MISMATCH};
 
     // blosum 62 score matrix
     std::array<short, 576> scores_matrix = {4 ,-1 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,0 ,-3 ,-2 ,0 ,-2 ,-1 ,0 ,-4 , -1 ,5 ,0 ,-2 ,
@@ -127,11 +131,10 @@ int main(int argc, char* argv[]){
                                             -4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,1
                                             }; 
 
+    ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
     int total_alignments = ref_sequences.size();
 
-    sw_driver.initialize(scores_matrix.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, &gpus[GPU_ID]);
-
-    sw_driver.set_gap_scores(-6, -1); // when using for protein alignments, gap scores need to be set separately.
+    sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, &gpus[GPU_ID]);
 
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
@@ -141,7 +144,7 @@ int main(int argc, char* argv[]){
         work_cpu++;
 
     sw_driver.mem_cpy_dth();
-    
+
     while(sw_driver.dth_done() != true)
         work_cpu++;
 

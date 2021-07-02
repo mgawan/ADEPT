@@ -12,10 +12,9 @@ using namespace std;
 
 constexpr int MAX_REF_LEN    =      1200;
 constexpr int MAX_QUERY_LEN  =       300;
-constexpr int BATCH_SIZE     =     50000;
 constexpr int GPU_ID         =         0;
 
-constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max(); // BATCH_SIZE;
+constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
 
 // scores
 constexpr short MATCH          =  3;
@@ -105,11 +104,12 @@ int main(int argc, char* argv[])
     int work_cpu = 0;
 
     ADEPT::driver sw_driver;
-    std::array<short, 4> scores = {MATCH, MISMATCH, GAP_OPEN, GAP_EXTEND};
+    std::array<short, 2> scores = {MATCH, MISMATCH};
+    ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
     int total_alignments = ref_sequences.size();
 
-    sw_driver.initialize(scores.data(), ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, &gpus[GPU_ID]);
+    sw_driver.initialize(scores.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, &gpus[GPU_ID]);
 
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 

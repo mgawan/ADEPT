@@ -117,7 +117,7 @@ ADEPT::aln_results::free_results()
 // ------------------------------------------------------------------------------------ //
 
 double 
-driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, sycl::device *dev)
+driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, sycl::device *dev)
 {
     algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 
@@ -138,7 +138,10 @@ driver::initialize(short scores[], ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGA
 
     if(sequence == SEQ_TYPE::DNA)
     {
-        match_score = scores[0], mismatch_score = scores[1], gap_start = scores[2], gap_extend = scores[3];
+        match_score = scores[0];
+        mismatch_score = scores[1]; 
+        gap_start = g_scores.open;
+        gap_extend = g_scores.extend;
     }
     else
     {
@@ -199,7 +202,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
         batch_size = ref_seqs.size();
     //    std::cerr << "INITIALIZATION ERROR: driver was initialized with wrong number of alignments\n";
 
-    //preparing offsets 
+    //preparing offsets
     int running_sum = 0;
     for(int i = 0; i < batch_size; i++)
     {
@@ -779,7 +782,7 @@ void driver::set_gap_scores(short _gap_open, short _gap_extend)
 
 // ------------------------------------------------------------------------------------ //
 
-aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id)
+aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id, gap_scores gaps)
 {
     int alns_this_gpu = ref_vec.size();
     int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
@@ -803,7 +806,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
     // initialize the adept driver
     driver sw_driver_loc;
 
-    auto init_time = sw_driver_loc.initialize(scores, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, device);
+    auto init_time = sw_driver_loc.initialize(scores, gaps, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, device);
 
     PRINT_ELAPSED(init_time);
     std::cout << std::endl;
@@ -868,7 +871,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
 
 // ------------------------------------------------------------------------------------ //
 
-all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], int batch_size_)
+all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_)
 {
     // get all the gpu devices
     auto gpus = sycl::device::get_devices(info::device_type::gpu);
@@ -939,7 +942,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<s
     // wrapper lambda function to provide thread_ids
     auto thread_launcher = [&](int thread_id)
     {
-        global_results.results[thread_id] = ADEPT::thread_launch(ref_batch_gpu[thread_id], que_batch_gpu[thread_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, &gpus[thread_id], scores, thread_id);
+        global_results.results[thread_id] = ADEPT::thread_launch(ref_batch_gpu[thread_id], que_batch_gpu[thread_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, &gpus[thread_id], scores, thread_id, gaps);
     };
 
     // launch a thread for each GPU

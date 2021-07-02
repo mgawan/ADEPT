@@ -35,7 +35,6 @@
 // constants
 constexpr int MAX_REF_LEN    =  1200;
 constexpr int MAX_QUERY_LEN  =   300;
-constexpr int BATCH_SIZE     = 50000;
 constexpr int GPU_ID         =     0;
 
 constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
@@ -61,7 +60,7 @@ main(int argc, char* argv[])
     //
     std::cout <<                               std::endl;
     std::cout << "------------------------" << std::endl;
-    std::cout << "       ADEPT SYCL       " << std::endl;
+    std::cout << "       MULTI GPU       " << std::endl;
     std::cout << "------------------------" << std::endl;
     std::cout <<                               std::endl;
 
@@ -72,7 +71,7 @@ main(int argc, char* argv[])
     // check command line arguments
     if (argc < 4)
     {
-        cout << "USAGE: adept_test <reference_file> <query_file> <output_file>" << endl;
+        cout << "USAGE: multi_gpu <reference_file> <query_file> <output_file>" << endl;
         exit(-1);
     }
 
@@ -160,13 +159,14 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
     // get batch size
-    // auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
-    // size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
+    auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
+    size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
-    std::array<short, 4> scores = { MATCH, MISMATCH, GAP_OPEN, GAP_EXTEND };
+    std::array<short, 2> scores = { MATCH, MISMATCH};
+    ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), BATCH_SIZE);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 
@@ -204,7 +204,7 @@ main(int argc, char* argv[])
     // cleanup all_results
     for(int i = 0; i < tot_gpus; i++)
         all_results.results[i].free_results();
-    
+
     // flush everything to stdout
     std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
 
