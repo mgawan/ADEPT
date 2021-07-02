@@ -66,8 +66,8 @@ function test_output() {
 pushd $ADEPT
 
 # make once
-make clean
-make install -j 16
+# make clean
+# make -j 16
 
 #
 # DNA examples

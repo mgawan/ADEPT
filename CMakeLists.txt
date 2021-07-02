@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set a default build type if none was specified
-set(default_build_type "RelWithDebInfo")
+set(default_build_type "Release")
  
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
@@ -15,6 +15,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
         "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+option(BUILD_EXAMPLES "Building Examples" ON)
 ##########################################################################################
 #       Add subdirectories
 ##########################################################################################
@@ -27,9 +28,10 @@ message(STATUS "Adding Adept library")
 add_subdirectory(adept)
 
 # Add examples
-message(STATUS "Adding Adept examples")
-add_subdirectory(examples)
-
+if(BUILD_EXAMPLES)
+    message(STATUS "Adding Adept examples")
+    add_subdirectory(examples)
+endif()
 ##########################################################################################
 #       Configure Testing script
 ##########################################################################################
