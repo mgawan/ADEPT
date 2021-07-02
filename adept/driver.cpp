@@ -92,7 +92,7 @@ void driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm
 
 }
 
-void driver::kernel_launch(std::vector<std::string> ref_seqs, std::vector<std::string> query_seqs, int res_offset){
+void driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset){
 	if(ref_seqs.size() < batch_size)
 		batch_size = ref_seqs.size();
 	//	std::cerr << "INITIALIZATION ERROR: driver was initialized with wrong number of alignments\n";
@@ -286,7 +286,7 @@ void driver::dth_synch(){
 	cudaErrchk(cudaEventSynchronize(curr_stream->data_event));
 }
 
-aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<std::string> que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[], gap_scores gaps){
+aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[], gap_scores gaps){
 	int alns_this_gpu = ref_vec.size();
 	int iterations = (alns_this_gpu + (batch_size-1))/batch_size;
 	if(iterations == 0) iterations = 1;
@@ -317,8 +317,8 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 
 		std::vector<std::string> temp_que(start_, end_);
 
-		its_ref_vecs.push_back(temp_ref);
-		its_que_vecs.push_back(temp_que);
+		its_ref_vecs.push_back(std::move(temp_ref));
+		its_que_vecs.push_back(std::move(temp_que));
 	}
 
 	driver sw_driver_loc;
@@ -335,7 +335,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> ref_vec, std::vector<s
 	return loc_results;
  }
 
-all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<std::string> que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_){
+all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_){
 	if(batch_size_ == -1)
 		batch_size_ = ADEPT::get_batch_size(0, max_que_size, max_ref_size, 100);
 	int total_alignments = ref_sequences.size();
@@ -371,11 +371,11 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
 			end_ = que_sequences.begin() + (i + 1) * alns_per_gpu;
 		std::vector<std::string> temp_que(start_, end_);
 
-		ref_batch_gpu.push_back(temp_ref);
-		que_batch_gpu.push_back(temp_que);
+		ref_batch_gpu.push_back(std::move(temp_ref));
+		que_batch_gpu.push_back(std::move(temp_que));
 		std::cout<<"gpu:"<<i<<" has alns:"<<temp_ref.size()<<std::endl;
 	}
-  //omp_set_num_threads(num_gpus);
+
   all_alns global_results(num_gpus);
   global_results.per_gpu = alns_per_gpu;
   global_results.left_over = left_over;
@@ -395,12 +395,6 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> ref_sequences, std::vector<st
   }
 
   threads.clear();
-//   #pragma omp parallel
-//   {
-//     int my_cpu_id = omp_get_thread_num();
-// 	global_results.results[my_cpu_id] = ADEPT::thread_launch(ref_batch_gpu[my_cpu_id], que_batch_gpu[my_cpu_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, my_cpu_id, scores);
-//     #pragma omp barrier
-//   }
 
-return global_results;
+  return global_results;
 }

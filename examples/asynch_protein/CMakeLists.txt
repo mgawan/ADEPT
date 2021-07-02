@@ -1,10 +1,9 @@
+
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(asynch_sw LANGUAGES CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
+
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# add_subdirectory(adept)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../adept ${CMAKE_CURRENT_BINARY_DIR}/adept)
-include_directories("../../adept")
 
 add_executable(asynch_protein asynch_protein.cpp)
 target_link_libraries(asynch_protein adept_lib_shared)
