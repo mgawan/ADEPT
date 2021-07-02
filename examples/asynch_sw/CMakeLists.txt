@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(asynch_sw LANGUAGES CXX CUDA)
+project(asynch_sw LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
