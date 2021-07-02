@@ -58,7 +58,7 @@ function test_output() {
     else
         echo "$DIFF" >> ./$2.diff ;
         echo "FAILED. Check $PWD/$2.diff" ;
-        break;
+        exit -2;
     fi
 }
 
@@ -66,6 +66,7 @@ function test_output() {
 pushd $ADEPT
 
 # make once
+make clean
 make install -j 16
 
 #

@@ -36,7 +36,7 @@ int main(int argc, char* argv[]){
     // check command line arguments
     if (argc < 4)
     {
-        cout << "USAGE: multi_gpu <reference_file> <query_file> <output_file>" << endl;
+        cout << "USAGE: simple_sw <reference_file> <query_file> <output_file>" << endl;
         exit(-1);
     }
 
