@@ -3,8 +3,11 @@
 ##########################################################################################
 
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+project(adept LANGUAGES CXX)
 
-project(adept_test LANGUAGES CXX)
+# C++ standard = 17 needed
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "")
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -54,22 +57,22 @@ elseif (ADEPT_GPU STREQUAL "AMD")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 endif()
 
-# C++ standard = 17 needed
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "")
-
 ##########################################################################################
 #       Add sub-directories
 ##########################################################################################
 
-add_subdirectory(adept)
 include_directories("adept")
 
-add_executable(adept_test main.cpp)
-target_link_libraries(adept_test adept_lib_shared)
+# Add adept library code
+message(STATUS "Adding Adept library")
+add_subdirectory(adept)
+
+# Add examples
+message(STATUS "Adding Adept examples")
+add_subdirectory(examples)
 
 ##########################################################################################
-#       Configure testing script
+#       Configure testing scripts
 ##########################################################################################
 
 # install the test script

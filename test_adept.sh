@@ -26,61 +26,97 @@
 
 # print usage
 function usage() {
-    echo "USAGE: test_adept.sh <num_iterations> <adept_build>"
-    echo "num_iterations: Number of iterations to run. default: 5"
+    echo "USAGE: test_adept.sh <adept_build>"
     echo "adept_build: Path to ADEPT build directory. default: $PWD"
     echo ""
 }
 
-# set number of iterations and build path from the command line args
-R=$1
-ADEPT=$2
-
-# if not provided, set to 5
-if [ -z "$1" ]; then
-    usage
-    echo "INFO: setting number of iters = 5"
-    R=5
-    echo "INFO: setting ADEPT build path to $PWD"
-    ADEPT=$PWD
-fi
+# set build path from the command line args
+ADEPT=$1
 
 # if not provided, set to $PWD
-if [ -z "$2" ]; then
+if [ -z "$1" ]; then
     echo "INFO: setting ADEPT build path to $PWD"
     ADEPT=$PWD
 fi
 
-# cd to adept directory
-pushd $ADEPT
-
-# make once
-make install -j 16
-
-REF=../test-data/expected256.algn
-
-# testing loop
-for i in $(seq 1 $R); do
-    ALN=../test-data/dna-output-$i.out
-    printf "\nRunning $i out of $R\n\n";
-    ./adept_test ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
-
+# test the output
+function test_output() {
     # if output was produced (adept ran successfully?)
-    if [ -f "$ALN" ]; then
-        DIFF=$(diff $REF $ALN);
+    if [ -f "$2" ]; then
+        DIFF=$(diff $1 $2);
     else 
         echo "ERROR: Output file does not exist";
-        break;
+        exit -1 ;
     fi
 
     # check if any diff?
     if [ "$DIFF" == "" ]; then
         printf "\nSUCCESS\n\n";
-        echo "Removing $ALN" ; rm $ALN ;
+        echo "Removing $2" ; 
+        rm $2 ;
     else
-        echo "$DIFF" >> ./$ALN.diff ;
-        echo "FAILED. Check $PWD/$ALN.diff" ;
-        break;
+        echo "$DIFF" >> ./$2.diff ;
+        echo "FAILED. Check $PWD/$2.diff" ;
+        exit -2 ;
     fi
+}
 
-done
+# cd to adept directory
+pushd $ADEPT
+
+# enable instrumentation if disabled
+cmake .. -DADEPT_INSTR=ON
+
+# make once
+make clean
+make install -j 16
+
+#
+# DNA examples
+#
+
+# set REF and ALN
+REF=../test-data/expected256.algn
+ALN=../test-data/dna-output.out
+
+printf "\nRunning 1 out of 4\n\n";
+
+# run simple sw example
+./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+
+# test output
+test_output "$REF" "$ALN"
+
+printf "\nRunning 2 out of 4\n\n";
+
+# run asynch_sw example
+./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+
+# test output
+test_output "$REF" "$ALN"
+
+printf "\nRunning 3 out of 4\n\n";
+
+# run multi_gpu example
+./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+
+# test output
+test_output "$REF" "$ALN"
+
+
+#
+# Protein examples
+#
+
+# set REF and ALN
+REF=../test-data/protein_expected256.algn
+ALN=../test-data/protein-output.out
+
+printf "\nRunning 4 out of 4\n\n";
+
+# run simple asynch_protein example
+./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta $ALN ;
+
+# test output
+test_output "$REF" "$ALN"
