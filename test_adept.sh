@@ -47,7 +47,7 @@ function test_output() {
         DIFF=$(diff $1 $2);
     else 
         echo "ERROR: Output file does not exist";
-        exit -1
+        exit -1 ;
     fi
 
     # check if any diff?
@@ -58,7 +58,7 @@ function test_output() {
     else
         echo "$DIFF" >> ./$2.diff ;
         echo "FAILED. Check $PWD/$2.diff" ;
-        break;
+        exit -2 ;
     fi
 }
 
@@ -69,6 +69,7 @@ pushd $ADEPT
 cmake .. -DADEPT_INSTR=ON
 
 # make once
+make clean
 make install -j 16
 
 #
