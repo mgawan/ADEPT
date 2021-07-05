@@ -8,6 +8,8 @@
 #include <thread>
 #include <functional>
 
+using namespace std;
+
 constexpr int MAX_REF_LEN    =      1200;
 constexpr int MAX_QUERY_LEN  =       800;
 constexpr int GPU_ID         =         0;
@@ -20,7 +22,8 @@ constexpr short MISMATCH       = -3;
 constexpr short GAP_OPEN       = -6;
 constexpr short GAP_EXTEND     = -1;
 
-using namespace std;
+bool verify_correctness(string file1, string file2);
+
 
 int main(int argc, char* argv[]){
 
@@ -31,15 +34,16 @@ int main(int argc, char* argv[]){
   std::cout <<                               std::endl;
 
   // check command line arguments
-  if (argc < 4)
+  if (argc < 5)
   {
-    cout << "USAGE: asynch_protein <reference_file> <query_file> <output_file>" << endl;
-    exit(-1);
+      cout << "USAGE: asynch_sw <reference_file> <query_file> <output_file> <res_file>" << endl;
+      exit(-1);
   }
 
   string refFile = argv[1];
   string queFile = argv[2];
   string out_file = argv[3];
+  string res_file = argv[4];
 
   vector<string> ref_sequences, que_sequences;
     string   lineR, lineQ;
@@ -161,5 +165,34 @@ int main(int argc, char* argv[]){
   results_file.flush();
   results_file.close();
 
-  return 0;
+  int return_state = 0;
+  if(!verify_correctness(res_file, out_file)) return_state = -1;
+  
+  if(return_state == 0){
+    cout<< "correctness test passed"<<endl;
+  }else{
+    cout<< "correctness test failed"<<endl;
+  }
+
+  return return_state;
+}
+
+bool verify_correctness(string file1, string file2){
+  ifstream ref_file(file1);
+  ifstream test_file(file2);
+  string ref_line, test_line;
+
+  // extract reference sequences
+  if(ref_file.is_open() && test_file.is_open())
+  {
+    while(getline(ref_file, ref_line) && getline(test_file, test_line)){
+      if(test_line != ref_line){
+        return false;
+      }
+    }
+    ref_file.close();
+    test_file.close();
+  }
+
+  return true;
 }

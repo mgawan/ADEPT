@@ -16,6 +16,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(BUILD_EXAMPLES "Building Examples" ON)
+option(BUILD_TESTS "Building Tests" ON)
 ##########################################################################################
 #       Add subdirectories
 ##########################################################################################
@@ -32,17 +33,14 @@ if(BUILD_EXAMPLES)
     message(STATUS "Adding Adept examples")
     add_subdirectory(examples)
 endif()
-##########################################################################################
-#       Configure Testing script
-##########################################################################################
 
-# install the test script
-if(NOT BASH_EXECUTABLE)
-    set(BASH_EXECUTABLE "/bin/bash")
+# Add tests
+if(BUILD_TESTS)
+    message(STATUS "Adding ADEPT tests")
+    include(CTest)
+
+    add_test(simple_sw ./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+    add_test(asynch_dna ./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+    add_test(asynch_prot ./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta ./simple_test_out ../test-data/protein_expected256.algn)
+    add_test(multi_gpu ./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
 endif()
-
-configure_file(${CMAKE_CURRENT_LIST_DIR}/test_adept.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/test_adept @ONLY)
-
-configure_file(${CMAKE_CURRENT_LIST_DIR}/run_datasets.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/run_datasets @ONLY)
