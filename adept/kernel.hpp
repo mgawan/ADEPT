@@ -32,9 +32,9 @@
 #include <CL/sycl.hpp>
 
 // macros for amino acids and matrix sizes
-const int NUM_OF_AA      = 21;
-const int ENCOD_MAT_SIZE = 91;
-const int SCORE_MAT_SIZE = 576;
+constexpr int NUM_OF_AA      = 21;
+constexpr int ENCOD_MAT_SIZE = 91;
+constexpr int SCORE_MAT_SIZE = 576;
 
 // ------------------------------------------------------------------------------------ //
 

@@ -27,6 +27,9 @@
 #include <chrono>
 #include "instrument.hpp"
 
+
+#define printVar(x)       std::cout << #x " = " << x << std::endl;
+
 using namespace sycl;
 using namespace ADEPT;
 
@@ -136,17 +139,16 @@ driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ
         curr_stream = new adept_stream(dev);
     }
 
+    // set scores
     if(sequence == SEQ_TYPE::DNA)
     {
         match_score = scores[0];
         mismatch_score = scores[1]; 
-        gap_start = g_scores.open;
-        gap_extend = g_scores.extend;
     }
     else
     {
         scoring_matrix_cpu = scores;
-        short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        constexpr short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                            23,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -159,6 +161,10 @@ driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ
         for(int i = 0; i < ENCOD_MAT_SIZE; i++)
             encoding_matrix[i] = temp_encode[i];
     }
+
+    // gap scores needed for both kernels
+    gap_start = g_scores.open;
+    gap_extend = g_scores.extend;
 
     // Print out the device information used for the kernel code.
     std::cout << "INFO: The device: "
@@ -246,13 +252,10 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
     int alignmentPad = 4 + (4 - totShmem % 4);
     size_t   ShmemBytes = totShmem + alignmentPad;
 
-
     // marker for forward kernel
     MARK_START(fwd_time);
     static thread_local double f_kernel_time = 0;
 
-    std::cout << "batch size = " << batch_size << std::endl;
-    std::cout << "min_Size = " << minSize << std::endl;
 
     // queue the forward kernel
     auto f_kernel = curr_stream->stream.submit([&](sycl::handler &h)
@@ -311,16 +314,6 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
                        sycl::access::target::local>
             local_spill_prev_prev_H(sycl::range(1024), h);
 
-        // sh_aa_encoding
-        sycl::accessor<short, 1, sycl::access::mode::read_write,
-                       sycl::access::target::local>
-            sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
-
-        // sh_aa_scoring
-        sycl::accessor<short, 1, sycl::access::mode::read_write,
-                       sycl::access::target::local>
-            sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
-
         //
         // local variables inside the lambda for access
         //
@@ -342,6 +335,16 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
 
         if (sequence == SEQ_TYPE::AA)
         {
+            // sh_aa_encoding
+            sycl::accessor<short, 1, sycl::access::mode::read_write,
+                           sycl::access::target::local>
+                sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
+
+            // sh_aa_scoring
+            sycl::accessor<short, 1, sycl::access::mode::read_write,
+                           sycl::access::target::local>
+                sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
+
             //
             // Protein kernel forward
             //
@@ -400,7 +403,6 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
     // compute new length
     int new_length = get_new_min_length(results.ref_end, results.query_end, batch_size);
 
-    std::cout << "New length = " << new_length << std::endl;
 
     // marker for reverse kernel
     MARK_START(rev_time);
@@ -463,16 +465,6 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
                        sycl::access::target::local>
             local_spill_prev_prev_H(sycl::range(1024), h);
 
-        // sh_aa_encoding
-        sycl::accessor<short, 1, sycl::access::mode::read_write,
-                       sycl::access::target::local>
-            sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
-
-        // sh_aa_scoring
-        sycl::accessor<short, 1, sycl::access::mode::read_write,
-                       sycl::access::target::local>
-            sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
-
         //
         // local variables inside the lambda for access
         //
@@ -494,6 +486,16 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
 
         if (sequence == SEQ_TYPE::AA)
         {
+            // sh_aa_encoding
+            sycl::accessor<short, 1, sycl::access::mode::read_write,
+                           sycl::access::target::local>
+                sh_aa_encoding(sycl::range(ENCOD_MAT_SIZE), h);
+    
+            // sh_aa_scoring
+            sycl::accessor<short, 1, sycl::access::mode::read_write,
+                           sycl::access::target::local>
+                sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
+
             //
             // Protein kernel forward
             //
