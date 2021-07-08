@@ -96,8 +96,6 @@ int main(int argc, char* argv[])
         quer_file.close();
     }
 
-
-
     ADEPT::driver sw_driver;
     std::array<short, 2> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);

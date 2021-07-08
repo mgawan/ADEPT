@@ -98,6 +98,7 @@ SYCL_EXTERNAL short
 Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
 {
     auto sg      = item.get_sub_group();
+    auto gp      = item.get_group();
     int warpSize = sg.get_local_range()[0];
 
     short laneId = sg.get_local_id();
@@ -117,7 +118,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     if(laneId == 0)
         locInds2[warpId] = myInd2;
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(gp);
 
     int check = (warpSize + blockSize - 1) / warpSize;  // mimicing the ceil function for floats
                                                         // float check = ((float)item.get_local_range(0) / 32);
@@ -138,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd2 = -1;
     }
 
-    item.barrier(sycl::access::fence_space::local_space);
+    sycl::group_barrier(sg);
 
     if(warpId == 0)
     {
@@ -157,9 +158,9 @@ Akernel::findMaxFour(short first, short second, short third, short fourth)
 {
     short maxScore = 0;
 
-    maxScore = max(first,second);
-    maxScore = max(maxScore, third);
-    maxScore = max(maxScore, fourth);
+    maxScore = sycl::max(first,second);
+    maxScore = sycl::max(maxScore, third);
+    maxScore = sycl::max(maxScore, fourth);
 
     return maxScore;
 }
@@ -184,6 +185,8 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                     short *locInds2)
 {
     auto sg = item.get_sub_group();
+    auto gp = item.get_group();
+
     int warpSize = sg.get_local_range()[0];
     int block_Id  = item.get_group_linear_id();
     int thread_Id = item.get_local_linear_id();
@@ -269,7 +272,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    item.barrier(sycl::access::fence_space::local_space); // this is required here so that complete sequence has been copied to shared memory
+    sycl::group_barrier(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
@@ -324,7 +327,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        item.barrier(sycl::access::fence_space::local_space); // this is needed so that all the shmem writes are completed.
+        sycl::group_barrier(gp); // this is needed so that all the shmem writes are completed.
 
         if (is_valid[thread_Id] && thread_Id < minSize)
         {
@@ -393,7 +396,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        item.barrier(sycl::access::fence_space::local_space);// why do I need this? commenting it out breaks it
+        sycl::group_barrier(gp);// why do I need this? commenting it out breaks it
     }
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
@@ -456,6 +459,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 {
 
     auto sg = item.get_sub_group();
+    auto gp = item.get_group();
 
     int block_Id  = item.get_group_linear_id();
     int thread_Id = item.get_local_linear_id();
@@ -472,7 +476,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     char*    seqB;
     char* longer_seq;
 
-    char*                  is_valid = &is_valid_array[0];
+    char *is_valid = &is_valid_array[0];
 
     // setting up block local sequences and their lengths.
     if(block_Id == 0)
@@ -543,15 +547,14 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    item.barrier(sycl::access::fence_space::local_space); // this is required here so that complete sequence has been copied to shared memory
+    sycl::group_barrier(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
     short thread_max_i = 0; // to maintain the DP coordinate i for the longer string
     short thread_max_j = 0;// to maintain the DP cooirdinate j for the shorter string
 
-    //initializing registers for storing diagonal values for three recent most diagonals (separate tables for
-    //H, E and F)
+    //initializing registers for storing diagonal values for three recent most diagonals (separate tables for H, E and F)
 
     short _curr_H = 0, _curr_F = 0, _curr_E = 0;
     short _prev_H = 0, _prev_F = 0, _prev_E = 0;
@@ -559,19 +562,18 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     short _temp_Val = 0;
 
     int max_threads = item.get_local_range(0);
-    
+
     for(int p = thread_Id; p < SCORE_MAT_SIZE; p+=max_threads)
         sh_aa_scoring[p] = scoring_matrix[p];
 
     for(int p = thread_Id; p < ENCOD_MAT_SIZE; p+=max_threads)
         sh_aa_encoding[p] = encoding_matrix[p];
 
-    item.barrier(sycl::access::fence_space::local_space); // to make sure all shmem allocations have been initialized
+    sycl::group_barrier(gp); // to make sure all shmem allocations have been initialized
 
     for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
     {
         // iterate for the number of anti-diagonals
-
         is_valid = is_valid - (diag < minSize || diag >= maxSize); //move the pointer to left by 1 if cnd true
 
         _temp_Val = _prev_H; // value exchange happens here to setup registers for next iteration
@@ -608,16 +610,15 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        item.barrier(sycl::access::fence_space::local_space); // this is needed so that all the shmem writes are completed.
+        sycl::group_barrier(gp); // this is needed so that all the shmem writes are completed.
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
             short fVal = _prev_F + extendGap;
             short hfVal = _prev_H + startGap;
 
-            short valeShfl = sg.shuffle(_prev_E, laneId- 1);
-
-            short valheShfl = sg.shuffle(_prev_H, laneId - 1);
+            short valeShfl = sg.shuffle(_prev_E, laneId-1);
+            short valheShfl = sg.shuffle(_prev_H, laneId-1);
 
             short eVal=0, heVal = 0;
 
@@ -637,29 +638,22 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                 eVal = 0;
                 heVal = 0;
             }
-            
+
             _curr_F = (fVal > hfVal) ? fVal : hfVal;
             _curr_E = (eVal > heVal) ? eVal : heVal;
 
             short testShufll = sg.shuffle(_prev_prev_H, laneId - 1);
 
             short final_prev_prev_H = 0;
-            
+
             if(diag >= maxSize)
-            {
                 final_prev_prev_H = local_spill_prev_prev_H[thread_Id - 1];
-            }
             else
-            {
                 final_prev_prev_H =(warpId !=0 && laneId == 0)?sh_prev_prev_H[warpId-1]:testShufll;
-            }
 
-
-            if(warpId == 0 && laneId == 0)
-                final_prev_prev_H = 0;
+            if(warpId == 0 && laneId == 0) final_prev_prev_H = 0;
 
             char to_comp = reverse == true ? longer_seq[maxSize -i] : longer_seq[i - 1];
-
             short mat_index_q = sh_aa_encoding[(int)to_comp]; //encoding_matrix
             short mat_index_r = sh_aa_encoding[(int)myColumnChar];
 
@@ -685,11 +679,8 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        item.barrier(sycl::access::fence_space::local_space); // why do I need this? commenting it out breaks it
-
+        sycl::group_barrier(gp); // why do I need this? commenting it out breaks it
     }
-
-    item.barrier(sycl::access::fence_space::local_space);
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
