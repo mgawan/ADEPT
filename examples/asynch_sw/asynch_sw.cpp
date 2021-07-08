@@ -22,9 +22,21 @@ constexpr short MISMATCH       = -3;
 constexpr short GAP_OPEN       = -6;
 constexpr short GAP_EXTEND     = -1;
 
+// ------------------------------------------------------------------------------------ //
+
+//
+// verify correctness
+//
+
 bool verify_correctness(string file1, string file2);
 
-int main(int argc, char* argv[]){
+// ------------------------------------------------------------------------------------ //
+
+//
+// main function
+//
+int
+main(int argc, char* argv[]){
 
   //
   // Print banner
