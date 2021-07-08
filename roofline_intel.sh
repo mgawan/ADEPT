@@ -74,31 +74,36 @@ make install -j 8
 
 # test datasets
 for i in $(seq 2 2); do
-    printf "\nRunning dataset: $i out of 2\n\n"; 
+    printf "\nRunning dataset: $i\n\n"; 
+
+    ALN=/home/u75261/sw-benchmark/read_set_$i.fasta
+    ROOF=$ADEPT/align_roof$i.out
+    PRJ=./dna_roof_data_$i
+
     # ALIGNMENTS
-    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
     
-    advisor --report=roofline --with-stack --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/roofline.html;
+    advisor --report=roofline --with-stack --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/roofline.html;
 
-    advisor --report=summary --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/summary;
+    advisor --report=summary --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/summary;
 
-    advisor --report=survey --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/survey;
+    advisor --report=survey --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/survey;
 
-    advisor --report=top-down --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/top-down;
+    advisor --report=top-down --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/top-down;
 
-    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
 
-    advisor --report=hotspots --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/hotspots;
+    advisor --report=hotspots --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/hotspots;
 
-    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
 
-    advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/map;
+    advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/map;
 
-    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=./roof_data_$i -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta /home/u75261/sw-benchmark/read_set_$i.fasta $ADEPT/align_roof$i.out 2>&1;
+    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
 
-    advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/dependencies;
+    advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/dependencies;
 
-    advisor --report=joined --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=./roof_data_$i --report-output=./roof_data_$i/dependencies;
+    advisor --report=joined --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/dependencies;
 
 done
 

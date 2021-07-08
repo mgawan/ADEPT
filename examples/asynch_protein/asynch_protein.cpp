@@ -1,3 +1,27 @@
+// MIT License
+//
+// Copyright (c) 2020, The Regents of the University of California,
+// through Lawrence Berkeley National Laboratory (subject to receipt of any
+// required approvals from the U.S. Dept. of Energy).  All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include "driver.hpp"
 #include <cmath>
 #include <fstream>
@@ -22,30 +46,47 @@ constexpr short GAP_EXTEND     = -1;
 
 using namespace std;
 
-int main(int argc, char* argv[])
-{
+// ------------------------------------------------------------------------------------ //
 
-    std::cout <<                               std::endl;
+//
+// verify correctness
+//
+int verify_correctness(std::string file1, std::string file2);
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// main function
+//
+int 
+main(int argc, char* argv[])
+{
+    std::cout <<                              std::endl;
     std::cout << "-----------------------" << std::endl;
     std::cout << "     ASYNC PROTEIN     " << std::endl;
     std::cout << "-----------------------" << std::endl;
-    std::cout <<                               std::endl;
+    std::cout <<                              std::endl;
 
     // check command line arguments
     if (argc < 4)
     {
-        cout << "USAGE: asynch_protein <reference_file> <query_file> <output_file>" << std::endl;
+        cout << "USAGE: asynch_protein <reference_file> <query_file> <output_file> OPTIONAL: <expected_results_file>" << std::endl;
         exit(-1);
     }
 
     string refFile = argv[1];
     string queFile = argv[2];
     string out_file = argv[3];
+    string expFile;
+
+    if (argc == 5)
+        expFile = argv[4];
 
     vector<string> ref_sequences, que_sequences;
     string   lineR, lineQ;
     ifstream ref_file(refFile);
     ifstream quer_file(queFile);
+
     unsigned largestA = 0, largestB = 0;
 
     int totSizeA = 0, totSizeB = 0;
@@ -102,7 +143,6 @@ int main(int argc, char* argv[])
     size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     ADEPT::driver sw_driver;
-    std::array<short, 2> scores = {MATCH, MISMATCH};
 
     // blosum 62 score matrix
     std::array<short, 576> scores_matrix = {4 ,-1 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,0 ,-3 ,-2 ,0 ,-2 ,-1 ,0 ,-4 , -1 ,5 ,0 ,-2 ,
@@ -149,13 +189,13 @@ int main(int argc, char* argv[])
         work_cpu++;
 
     auto results = sw_driver.get_alignments();
-    ofstream results_file(out_file);
+    std::ofstream results_file(out_file);
  
     std::cout << std::endl << "STATUS: Writing results..." << std::endl;
 
     // write the results header
     results_file << "alignment_scores\t"     << "reference_begin_location\t" << "reference_end_location\t" 
-                             << "query_begin_location\t" << "query_end_location"         << std::endl;
+                 << "query_begin_location\t" << "query_end_location"         << std::endl;
 
     // write the results
     for(int k = 0; k < ref_sequences.size(); k++)
@@ -169,8 +209,69 @@ int main(int argc, char* argv[])
     results_file.flush();
     results_file.close();
 
+    int status = 0;
+
+    // if expected file is provided, then check for correctness, otherwise exit
+    if (expFile != "")
+    {
+        std::cout << "\nSTATUS: Checking output against: " << expFile << std::endl << std::endl;
+        status = verify_correctness(expFile, out_file);
+
+        if (status)
+            std::cout << "STATUS: Correctness test failed." << std::endl << std::endl;
+        else
+            std::cout << "STATUS: Correctness test passed." << std::endl << std::endl;
+    }
+    else
+    {
+        std::cout << "\nINFO: <expected_results_file> not provided. Skipping correctness check..." << std::endl << std::endl;
+    }
+
     // flush everything to stdout
     std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
 
-    return 0;
+    return status;
+}
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// verify correctness
+//
+int verify_correctness(string file1, string file2)
+{
+    std::ifstream ref_file(file1);
+    std::ifstream test_file(file2);
+
+    string ref_line, test_line;
+
+    int isSame = 0;
+
+    // extract reference sequences
+    if(ref_file.is_open() && test_file.is_open())
+    {
+        while(getline(ref_file, ref_line) && getline(test_file, test_line))
+        {
+            if(test_line != ref_line)
+            {
+                isSame = -1;
+            }
+        }
+
+        if (getline(ref_file, ref_line) && test_line != "")
+            isSame = -2;
+
+        if (getline(test_file, test_line) && test_line != "")
+            isSame = -3;
+
+        ref_file.close();
+        test_file.close();
+    }
+    else
+    {
+        std::cout << "ERROR: cannot open either " << file1 << " or " << file2 << std::endl;
+        isSame = -4;
+    }
+
+    return isSame;
 }

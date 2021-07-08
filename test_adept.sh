@@ -1,4 +1,4 @@
-#!@BASH_EXECUTABLE@
+#!/bin/bash -le
 
 # MIT License
 #
@@ -66,7 +66,7 @@ function test_output() {
 pushd $ADEPT
 
 # enable instrumentation if disabled
-cmake .. -DADEPT_INSTR=ON
+cmake .. -DADEPT_INSTR=ON -DBUILD_TESTS=ON
 
 # make once
 make clean
@@ -80,26 +80,26 @@ make install -j 16
 REF=../test-data/expected256.algn
 ALN=../test-data/dna-output.out
 
-printf "\nRunning 1 out of 4\n\n";
+printf "\nRunning 1 out of 5\n\n";
 
 # run simple sw example
-./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN $REF;
 
 # test output
 test_output "$REF" "$ALN"
 
-printf "\nRunning 2 out of 4\n\n";
+printf "\nRunning 2 out of 5\n\n";
 
 # run asynch_sw example
-./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN $REF;
 
 # test output
 test_output "$REF" "$ALN"
 
-printf "\nRunning 3 out of 4\n\n";
+printf "\nRunning 3 out of 5\n\n";
 
 # run multi_gpu example
-./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN ;
+./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta $ALN $REF;
 
 # test output
 test_output "$REF" "$ALN"
@@ -113,10 +113,15 @@ test_output "$REF" "$ALN"
 REF=../test-data/protein_expected256.algn
 ALN=../test-data/protein-output.out
 
-printf "\nRunning 4 out of 4\n\n";
+printf "\nRunning 4 out of 5\n\n";
 
 # run simple asynch_protein example
-./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta $ALN ;
+./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta $ALN $REF;
+
+printf "\nRunning 5 out of 5\n\n";
+
+# run simple asynch_protein example
+./examples/multigpu_protein/multigpu_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta $ALN $REF;
 
 # test output
 test_output "$REF" "$ALN"

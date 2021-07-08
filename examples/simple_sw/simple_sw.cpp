@@ -22,7 +22,20 @@ constexpr short MISMATCH       = -3;
 constexpr short GAP_OPEN       = -6;
 constexpr short GAP_EXTEND     = -1;
 
-int main(int argc, char* argv[])
+// ------------------------------------------------------------------------------------ //
+
+//
+// verify correctness
+//
+int verify_correctness(std::string file1, std::string file2);
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// main function
+//
+int 
+main(int argc, char* argv[])
 {
 
     //
@@ -44,6 +57,10 @@ int main(int argc, char* argv[])
     string refFile = argv[1];
     string queFile = argv[2];
     string out_file = argv[3];
+    string expFile;
+
+    if (argc == 5)
+        expFile = argv[4];
 
     vector<string> ref_sequences, que_sequences;
     string   lineR, lineQ;
@@ -134,8 +151,70 @@ int main(int argc, char* argv[])
     results_file.flush();
     results_file.close();
 
+    int status = 0;
+
+    // if expected file is provided, then check for correctness, otherwise exit
+    if (expFile != "")
+    {
+        std::cout << "\nSTATUS: Checking output against: " << expFile << std::endl << std::endl;
+        status = verify_correctness(expFile, out_file);
+
+        if (status)
+            std::cout << "STATUS: Correctness test failed." << std::endl << std::endl;
+        else
+            std::cout << "STATUS: Correctness test passed." << std::endl << std::endl;
+    }
+    else
+    {
+        std::cout << "\nINFO: <expected_results_file> not provided. Skipping correctness check..." << std::endl << std::endl;
+    }
+
     // flush everything to stdout
     std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
 
-    return 0;
+    return status;
 }
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// verify correctness
+//
+int verify_correctness(string file1, string file2)
+{
+    std::ifstream ref_file(file1);
+    std::ifstream test_file(file2);
+
+    string ref_line, test_line;
+
+    int isSame = 0;
+
+    // extract reference sequences
+    if(ref_file.is_open() && test_file.is_open())
+    {
+        while(getline(ref_file, ref_line) && getline(test_file, test_line))
+        {
+            if(test_line != ref_line)
+            {
+                isSame = -1;
+            }
+        }
+
+        if (getline(ref_file, ref_line) && test_line != "")
+            isSame = -2;
+
+        if (getline(test_file, test_line) && test_line != "")
+            isSame = -3;
+
+        ref_file.close();
+        test_file.close();
+    }
+    else
+    {
+        std::cout << "ERROR: cannot open either " << file1 << " or " << file2 << std::endl;
+        isSame = -4;
+    }
+
+    return isSame;
+}
+
