@@ -323,8 +323,15 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
 
 	driver sw_driver_loc;
 	sw_driver_loc.initialize(scores, gaps, algorithm, sequence, cigar_avail, max_ref_size, max_que_size, alns_this_gpu, batch_size, dev_id);
+
+	// minimum 5 or 5% iterations
+	int iter_20 = std::max(5, iterations/20);
+
 	for(int i = 0; i < iterations; i++){
-		std::cout<<"iteration:"<<i<<" on gpu:"<<dev_id<<std::endl;
+		// print progress every 5%
+		if (i % iter_20 == 0 || i == iterations - 1)
+			std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
+		
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
 		sw_driver_loc.dth_synch();
