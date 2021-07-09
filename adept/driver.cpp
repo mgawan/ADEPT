@@ -50,7 +50,7 @@ void ADEPT::aln_results::free_results(){
 void driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size,  int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == SEQ_TYPE::DNA){
-		match_score = scores[0], mismatch_score = scores[1], gap_start = g_scores.open, gap_extend = g_scores.extend;
+		match_score = scores[0], mismatch_score = scores[1];
 	}else{
 		scoring_matrix_cpu = scores;
 		short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -64,8 +64,10 @@ void driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm
 		for(int i = 0; i < ENCOD_MAT_SIZE; i++){
 			encoding_matrix[i] = temp_encode[i];
 		}
-		gap_start = g_scores.open, gap_extend = g_scores.extend;
 	}
+
+	// gap scores common for both kernels
+	gap_start = g_scores.open, gap_extend = g_scores.extend;
 
 	gpu_id = _gpu_id;
 	cudaSetDevice(gpu_id);
