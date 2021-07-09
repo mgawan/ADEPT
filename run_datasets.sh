@@ -26,7 +26,7 @@
 
 # print usage
 function usage() {
-    echo "USAGE: test_adept.sh <adept_build>"
+    echo "USAGE: run_datasets.sh <adept_build>"
     echo "adept_build: Path to ADEPT build directory. default: $PWD"
     echo ""
 }
@@ -61,7 +61,7 @@ for i in $(seq 1 3); do
     REF=/global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/align_ds$i.out
     ALN=./dna_align_ds$i.out; 
 
-    ./examples/multigpu_protein/multigpu_protein /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
+    ./examples/multi_gpu/multi_gpu /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then
@@ -81,13 +81,6 @@ for i in $(seq 1 3); do
 
 done
 
-
-# if output was produced (adept ran successfully?)
-if [ -f "$ADEPT/log_SYCL.out" ]; then
-    echo "Removing old $ADEPT/log_SYCL.out";
-    rm $ADEPT/log_SYCL.out;
-fi
-
 # test protein datasets
 for i in $(seq 1 3); do
     printf "\nRunning protein dataset: $i out of 3\n\n"; 
@@ -96,7 +89,7 @@ for i in $(seq 1 3); do
     REF=/global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/align_ds$i.out
     ALN=./protein_align_ds$i.out; 
 
-    ./examples/multigpu_protein/multigpu_protein /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
+    ./examples/multigpu_protein/multigpu_protein /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/que_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then
