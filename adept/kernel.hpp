@@ -36,6 +36,10 @@ constexpr int NUM_OF_AA      = 21;
 constexpr int ENCOD_MAT_SIZE = 91;
 constexpr int SCORE_MAT_SIZE = 576;
 
+template <typename T>
+using shmAccessor_t = sycl::accessor<T, 1, sycl::access::mode::read_write,
+                            sycl::access::target::local>;
+
 // ------------------------------------------------------------------------------------ //
 
 //

@@ -139,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd2 = -1;
     }
 
-    sycl::group_barrier(sg);
+    sycl::group_barrier(gp);
 
     if(warpId == 0)
     {
@@ -396,7 +396,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        sycl::group_barrier(gp);// why do I need this? commenting it out breaks it
+        sycl::group_barrier(gp); // why do I need this? commenting it out breaks it
     }
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
