@@ -310,8 +310,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
         auto mismatch_score_loc = mismatch_score;
         auto gap_start_loc = gap_start;
         auto gap_extend_loc = gap_extend;
-        auto scoring_matrix_gpu_loc = d_scoring_matrix;
-        auto encoding_matrix_gpu_loc = d_encoding_matrix;
+        auto score_encode_matrix_gpu_loc = d_scoring_matrix;
 
         if (sequence == SEQ_TYPE::AA)
         {
@@ -326,7 +325,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             //
             h.parallel_for<class AA::Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
-                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, scoring_matrix_gpu_loc, encoding_matrix_gpu_loc, false, 
+                Akernel::aa_kernel<false>(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, 
                 item,
                 dyn_shmem.get_pointer(),
                 sh_prev_E.get_pointer(), 
@@ -437,8 +436,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
         auto mismatch_score_loc = mismatch_score;
         auto gap_start_loc = gap_start;
         auto gap_extend_loc = gap_extend;
-        auto scoring_matrix_gpu_loc = d_scoring_matrix;
-        auto encoding_matrix_gpu_loc = d_encoding_matrix;
+        auto score_encode_matrix_gpu_loc = d_scoring_matrix;
 
         if (sequence == SEQ_TYPE::AA)
         {
@@ -453,7 +451,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             //
             h.parallel_for<class AA::Adept_R>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
             {
-                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, scoring_matrix_gpu_loc, encoding_matrix_gpu_loc, true, 
+                Akernel::aa_kernel<true>(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, 
                 item,
                 dyn_shmem.get_pointer(),
                 sh_prev_E.get_pointer(), 
@@ -646,7 +644,6 @@ driver::dealloc_gpu_mem()
     if(sequence == SEQ_TYPE::AA)
     {
         sycl::free(d_scoring_matrix, curr_stream->stream);
-        sycl::free(d_encoding_matrix, curr_stream->stream);
     }
 }
 
@@ -682,8 +679,9 @@ driver::allocate_gpu_mem()
 
     if(sequence == SEQ_TYPE::AA)
     {
-        d_encoding_matrix = sycl::malloc_device<short>(ENCOD_MAT_SIZE, curr_stream->stream);
-        d_scoring_matrix = sycl::malloc_device<short>(SCORE_MAT_SIZE, curr_stream->stream);
+        d_scoring_matrix = sycl::malloc_device<short>(SCORE_MAT_SIZE + ENCOD_MAT_SIZE, curr_stream->stream);
+        d_encoding_matrix = d_scoring_matrix + SCORE_MAT_SIZE;
+
     }
 }
 

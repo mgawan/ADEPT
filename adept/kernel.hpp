@@ -51,7 +51,7 @@ namespace Akernel
 SYCL_EXTERNAL inline short
 warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item);
 
- short
+short
 warpReduceMax(short val, int lengthSeqB);
 
 SYCL_EXTERNAL short
@@ -90,12 +90,13 @@ dna_kernel(char* seqA_array,
                 short *locInds,
                 short *locInds2);
 
+template <bool reverse>
 SYCL_EXTERNAL void
 aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                 int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short*encoding_matrix, bool reverse,
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
                 sycl::nd_item<1> &item, 
-                char *is_valid_array,
+                char  *is_valid_array,
                 short *sh_prev_E,
                 short *sh_prev_H,
                 short *sh_prev_prev_H,

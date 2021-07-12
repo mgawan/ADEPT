@@ -167,6 +167,9 @@ Akernel::findMaxFour(short first, short second, short third, short fourth)
 
 // ------------------------------------------------------------------------------------ //
 
+//
+// dna kernel
+//
 SYCL_EXTERNAL void
 Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                     int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
@@ -439,10 +442,14 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 
 // ------------------------------------------------------------------------------------ //
 
+//
+// amino acid kernel
+//
+template <bool reverse>
 SYCL_EXTERNAL void
 Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                                         int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse,
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
                                         sycl::nd_item<1> &item, 
                                         char *is_valid_array,
                                         short *sh_prev_E,
@@ -477,6 +484,9 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     char* longer_seq;
 
     char *is_valid = &is_valid_array[0];
+
+    short *scoring_matrix = score_encode_matrix;
+    short *encoding_matrix = score_encode_matrix + SCORE_MAT_SIZE;
 
     // setting up block local sequences and their lengths.
     if(block_Id == 0)
@@ -716,3 +726,51 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 }
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// template instantiations
+//
+
+template 
+SYCL_EXTERNAL void
+Akernel::aa_kernel<false>(char* seqA_array, char* seqB_array, int* prefix_lengthA,
+                                        int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
+                                        sycl::nd_item<1> &item, 
+                                        char *is_valid_array,
+                                        short *sh_prev_E,
+                                        short *sh_prev_H,
+                                        short *sh_prev_prev_H,
+                                        short *local_spill_prev_E,
+                                        short *local_spill_prev_H,
+                                        short *local_spill_prev_prev_H,
+                                        short *sh_aa_encoding, 
+                                        short *sh_aa_scoring,
+                                        short *locTots,
+                                        short *locInds,
+                                        short *locInds2);
+
+// ------------------------------------------------------------------------------------ //
+
+template 
+SYCL_EXTERNAL void
+Akernel::aa_kernel<true>(char* seqA_array, char* seqB_array, int* prefix_lengthA,
+                                        int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
+                                        sycl::nd_item<1> &item, 
+                                        char *is_valid_array,
+                                        short *sh_prev_E,
+                                        short *sh_prev_H,
+                                        short *sh_prev_prev_H,
+                                        short *local_spill_prev_E,
+                                        short *local_spill_prev_H,
+                                        short *local_spill_prev_prev_H,
+                                        short *sh_aa_encoding, 
+                                        short *sh_aa_scoring,
+                                        short *locTots,
+                                        short *locInds,
+                                        short *locInds2);
+
+// ------------------------------------------------------------------------------------ //
