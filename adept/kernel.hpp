@@ -39,10 +39,10 @@ constexpr int SCORE_MAT_SIZE = 576;
 // wrap the barrier in macro until the compiler is updated to use sycl::group_barrier() on both Cori and Intel DevCloud
 #if defined (INTEL_GPU)
     #define barrier(grp)             item.barrier(sycl::access::fence_space::local_space)
-#elif defined (NVDIA_GPU)
+#elif defined (NVIDIA_GPU)
     #define barrier(grp)             sycl::group_barrier(grp)
 #else
-    throw "ABORT: Please specify the ADEPT_GPU=<NVIDIA|INTEL>\n\n"
+    #error ABORT: Please specify the ADEPT_GPU=<NVIDIA|INTEL>\n\n
 #endif 
 
 template <typename T>
