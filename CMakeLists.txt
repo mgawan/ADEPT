@@ -36,7 +36,7 @@ option(BUILD_TESTS "Building Tests" ON)
 #       GPU selection
 ##########################################################################################
 
-set(default_gpu "Intel")
+set(default_gpu "NVIDIA")
 
 if (NOT ADEPT_GPU)
     message(STATUS "Setting GPU type to '${default_gpu}' as GPU not specified.")
@@ -45,19 +45,26 @@ if (NOT ADEPT_GPU)
 
     # Set the possible values of GPUs
     set_property(CACHE ADEPT_GPU PROPERTY STRINGS
-        "Intel" "NVIDIA")
+        "INTEL" "NVIDIA")
 else()
     message(STATUS "The selected GPU type is ${ADEPT_GPU}.")
 endif()
 
 if (ADEPT_GPU STREQUAL "NVIDIA")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
+
+elseif (ADEPT_GPU STREQUAL "INTEL")
+    # add a flag
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DINTEL_GPU")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DINTEL_GPU")
 
 elseif (ADEPT_GPU STREQUAL "AMD")
-    # todo
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    # do nothing
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAMD_GPU")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAMD_GPU")
+
 endif()
 
 ##########################################################################################

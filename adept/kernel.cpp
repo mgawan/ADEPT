@@ -118,7 +118,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     if(laneId == 0)
         locInds2[warpId] = myInd2;
 
-    sycl::group_barrier(gp);
+    barrier(gp);
 
     int check = (warpSize + blockSize - 1) / warpSize;  // mimicing the ceil function for floats
                                                         // float check = ((float)item.get_local_range(0) / 32);
@@ -139,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd2 = -1;
     }
 
-    sycl::group_barrier(gp);
+    barrier(gp);
 
     if(warpId == 0)
     {
@@ -275,7 +275,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    sycl::group_barrier(gp); // this is required here so that complete sequence has been copied to shared memory
+    barrier(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
@@ -330,7 +330,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        sycl::group_barrier(gp); // this is needed so that all the shmem writes are completed.
+        barrier(gp); // this is needed so that all the shmem writes are completed.
 
         if (is_valid[thread_Id] && thread_Id < minSize)
         {
@@ -399,7 +399,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        sycl::group_barrier(gp); // why do I need this? commenting it out breaks it
+        barrier(gp); // why do I need this? commenting it out breaks it
     }
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
@@ -557,7 +557,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    sycl::group_barrier(gp); // this is required here so that complete sequence has been copied to shared memory
+    barrier(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
@@ -579,7 +579,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     for(int p = thread_Id; p < ENCOD_MAT_SIZE; p+=max_threads)
         sh_aa_encoding[p] = encoding_matrix[p];
 
-    sycl::group_barrier(gp); // to make sure all shmem allocations have been initialized
+    barrier(gp); // to make sure all shmem allocations have been initialized
 
     for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
     {
@@ -620,7 +620,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        sycl::group_barrier(gp); // this is needed so that all the shmem writes are completed.
+        barrier(gp); // this is needed so that all the shmem writes are completed.
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
@@ -689,7 +689,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        sycl::group_barrier(gp); // why do I need this? commenting it out breaks it
+        barrier(gp); // why do I need this? commenting it out breaks it
     }
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
