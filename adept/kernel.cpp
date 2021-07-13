@@ -118,7 +118,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     if(laneId == 0)
         locInds2[warpId] = myInd2;
 
-    barrier(gp);
+    BARRIER(gp);
 
     int check = (warpSize + blockSize - 1) / warpSize;  // mimicing the ceil function for floats
                                                         // float check = ((float)item.get_local_range(0) / 32);
@@ -139,7 +139,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         myInd2 = -1;
     }
 
-    barrier(gp);
+    BARRIER(gp);
 
     if(warpId == 0)
     {
@@ -275,7 +275,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    barrier(gp); // this is required here so that complete sequence has been copied to shared memory
+    BARRIER(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
@@ -330,7 +330,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        barrier(gp); // this is needed so that all the shmem writes are completed.
+        BARRIER(gp); // this is needed so that all the shmem writes are completed.
 
         if (is_valid[thread_Id] && thread_Id < minSize)
         {
@@ -399,8 +399,10 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        barrier(gp); // why do I need this? commenting it out breaks it
+        BARRIER(gp); // why do I need this? commenting it out breaks it
     }
+
+    BARRIER(gp); // why do I need this? commenting it out breaks it
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
@@ -445,11 +447,10 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 //
 // amino acid kernel
 //
-template <bool reverse>
 SYCL_EXTERNAL void
 Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                                         int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
+                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix, bool reverse,
                                         sycl::nd_item<1> &item, 
                                         char *is_valid_array,
                                         short *sh_prev_E,
@@ -557,7 +558,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 
-    barrier(gp); // this is required here so that complete sequence has been copied to shared memory
+    BARRIER(gp); // this is required here so that complete sequence has been copied to shared memory
 
     int   i            = 1;
     short thread_max   = 0; // to maintain the thread max score
@@ -579,7 +580,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
     for(int p = thread_Id; p < ENCOD_MAT_SIZE; p+=max_threads)
         sh_aa_encoding[p] = encoding_matrix[p];
 
-    barrier(gp); // to make sure all shmem allocations have been initialized
+    BARRIER(gp); // to make sure all shmem allocations have been initialized
 
     for(int diag = 0; diag < lengthSeqA + lengthSeqB - 1; diag++)
     {
@@ -620,7 +621,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             local_spill_prev_prev_H[thread_Id] = _prev_prev_H;
         }
 
-        barrier(gp); // this is needed so that all the shmem writes are completed.
+        BARRIER(gp); // this is needed so that all the shmem writes are completed.
 
         if(is_valid[thread_Id] && thread_Id < minSize)
         {
@@ -657,9 +658,13 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short final_prev_prev_H = 0;
 
             if(diag >= maxSize)
+            {
                 final_prev_prev_H = local_spill_prev_prev_H[thread_Id - 1];
+            }
             else
+            {
                 final_prev_prev_H =(warpId !=0 && laneId == 0)?sh_prev_prev_H[warpId-1]:testShufll;
+            }
 
             if(warpId == 0 && laneId == 0) final_prev_prev_H = 0;
 
@@ -689,7 +694,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
             short testShufll = sg.shuffle(_prev_prev_H, laneId); //__shfl_sync(mask, _prev_prev_H, laneId - 1, 32);
         }
 
-        barrier(gp); // why do I need this? commenting it out breaks it
+        BARRIER(gp); // why do I need this? commenting it out breaks it
     }
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
@@ -726,51 +731,5 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         }
     }
 }
-
-// ------------------------------------------------------------------------------------ //
-
-//
-// template instantiations
-//
-
-template 
-SYCL_EXTERNAL void
-Akernel::aa_kernel<false>(char* seqA_array, char* seqB_array, int* prefix_lengthA,
-                                        int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
-                                        sycl::nd_item<1> &item, 
-                                        char *is_valid_array,
-                                        short *sh_prev_E,
-                                        short *sh_prev_H,
-                                        short *sh_prev_prev_H,
-                                        short *local_spill_prev_E,
-                                        short *local_spill_prev_H,
-                                        short *local_spill_prev_prev_H,
-                                        short *sh_aa_encoding, 
-                                        short *sh_aa_scoring,
-                                        short *locTots,
-                                        short *locInds,
-                                        short *locInds2);
-
-// ------------------------------------------------------------------------------------ //
-
-template 
-SYCL_EXTERNAL void
-Akernel::aa_kernel<true>(char* seqA_array, char* seqB_array, int* prefix_lengthA,
-                                        int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                                        short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
-                                        sycl::nd_item<1> &item, 
-                                        char *is_valid_array,
-                                        short *sh_prev_E,
-                                        short *sh_prev_H,
-                                        short *sh_prev_prev_H,
-                                        short *local_spill_prev_E,
-                                        short *local_spill_prev_H,
-                                        short *local_spill_prev_prev_H,
-                                        short *sh_aa_encoding, 
-                                        short *sh_aa_scoring,
-                                        short *locTots,
-                                        short *locInds,
-                                        short *locInds2);
 
 // ------------------------------------------------------------------------------------ //

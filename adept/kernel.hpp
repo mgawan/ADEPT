@@ -38,9 +38,9 @@ constexpr int SCORE_MAT_SIZE = 576;
 
 // wrap the barrier in macro until the compiler is updated to use sycl::group_barrier() on both Cori and Intel DevCloud
 #if defined (INTEL_GPU)
-    #define barrier(grp)             item.barrier(sycl::access::fence_space::local_space)
+    #define BARRIER(grp)             item.barrier(sycl::access::fence_space::local_space)
 #elif defined (NVIDIA_GPU)
-    #define barrier(grp)             sycl::group_barrier(grp)
+    #define BARRIER(grp)             sycl::group_barrier(grp)
 #else
     #error ABORT: Please specify the ADEPT_GPU=<NVIDIA|INTEL>\n\n
 #endif 
@@ -99,11 +99,11 @@ dna_kernel(char* seqA_array,
                 short *locInds,
                 short *locInds2);
 
-template <bool reverse>
 SYCL_EXTERNAL void
 aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                 int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
                 short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
+                bool reverse,
                 sycl::nd_item<1> &item, 
                 char  *is_valid_array,
                 short *sh_prev_E,

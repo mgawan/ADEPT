@@ -325,8 +325,8 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             //
             h.parallel_for<class AA::Adept_F>(sycl::nd_range<1>(batch_size * minSize, minSize), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
-                Akernel::aa_kernel<false>(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, 
-                item,
+                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, 
+                false, item,
                 dyn_shmem.get_pointer(),
                 sh_prev_E.get_pointer(), 
                 sh_prev_H.get_pointer(), 
@@ -449,9 +449,9 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             //
             // Protein kernel forward
             //
-            h.parallel_for<class AA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            h.parallel_for<class AA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
-                Akernel::aa_kernel<true>(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, 
+                Akernel::aa_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, gap_start_loc, gap_extend_loc, score_encode_matrix_gpu_loc, true,
                 item,
                 dyn_shmem.get_pointer(),
                 sh_prev_E.get_pointer(), 
@@ -473,7 +473,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             //
             // DNA kernel forward
             //
-            h.parallel_for<class DNA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size  (warpSize)]]
+            h.parallel_for<class DNA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
                 Akernel::dna_kernel(ref_cstr_d_loc, que_cstr_d_loc, offset_ref_gpu_loc, offset_query_gpu_loc, ref_start_gpu_loc, ref_end_gpu_loc, query_start_gpu_loc, query_end_gpu_loc, scores_gpu_loc, match_score_loc, mismatch_score_loc, gap_start_loc, gap_extend_loc, true, 
                 item, 
