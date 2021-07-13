@@ -447,7 +447,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
             shmAccessor_t <short> sh_aa_scoring(sycl::range(SCORE_MAT_SIZE), h);
 
             //
-            // Protein kernel forward
+            // Protein kernel reverse
             //
             h.parallel_for<class AA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
@@ -471,7 +471,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
         else
         {
             //
-            // DNA kernel forward
+            // DNA kernel reverse
             //
             h.parallel_for<class DNA::Adept_R>(sycl::nd_range<1>(batch_size * new_length, new_length), [=](sycl::nd_item<1> item)[[intel::reqd_sub_group_size(warpSize)]]
             {
