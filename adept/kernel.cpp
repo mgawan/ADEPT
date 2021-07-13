@@ -25,12 +25,12 @@ kernel::warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, uns
                                     // all the alignmnts with same score are same.
         {
           if(reverse == true){
-            if(newInd2 > ind2){
+            if(newInd2 > ind2 || ((newInd2 == ind2) && (newInd > ind))){
               ind = newInd;
               ind2 = newInd2;
             }
           }else{
-            if(newInd < ind){
+            if (newInd < ind || ((newInd == ind) && (newInd2 < ind2))){
               ind = newInd;
               ind2 = newInd2;
             }
