@@ -69,7 +69,7 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
         {
             if(reverse == true)
             {
-                if (newInd2 > ind2)
+                if (newInd2 > ind2 || ((newInd2 == ind2) && (newInd > ind)))
                 {
                     ind = newInd;
                     ind2 = newInd2;
@@ -77,7 +77,7 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
             }
             else
             {
-                if (newInd < ind)
+                if (newInd < ind || ((newInd == ind) && (newInd2 < ind2)))
                 {
                     ind = newInd;
                     ind2 = newInd2;
@@ -119,7 +119,6 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
         locInds2[warpId] = myInd2;
 
     BARRIER(gp);
-
 
     int nblocks = sg.get_group_range().size();
 
