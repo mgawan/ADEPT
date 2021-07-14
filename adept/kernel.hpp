@@ -36,6 +36,19 @@ constexpr int NUM_OF_AA      = 21;
 constexpr int ENCOD_MAT_SIZE = 91;
 constexpr int SCORE_MAT_SIZE = 576;
 
+// wrap the barrier in macro until the compiler is updated to use sycl::group_barrier() on both Cori and Intel DevCloud
+#if defined (INTEL_GPU)
+    #define BARRIER(grp)             item.barrier(sycl::access::fence_space::local_space)
+#elif defined (NVIDIA_GPU)
+    #define BARRIER(grp)             sycl::group_barrier(grp)
+#else
+    #error ABORT: Please specify the ADEPT_GPU=<NVIDIA|INTEL>\n\n
+#endif 
+
+template <typename T>
+using shmAccessor_t = sycl::accessor<T, 1, sycl::access::mode::read_write,
+                            sycl::access::target::local>;
+
 // ------------------------------------------------------------------------------------ //
 
 //
@@ -47,7 +60,7 @@ namespace Akernel
 SYCL_EXTERNAL inline short
 warpReduceMax_with_index(short val, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item);
 
- short
+short
 warpReduceMax(short val, int lengthSeqB);
 
 SYCL_EXTERNAL short
@@ -89,9 +102,10 @@ dna_kernel(char* seqA_array,
 SYCL_EXTERNAL void
 aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
                 int* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short*encoding_matrix, bool reverse,
+                short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* score_encode_matrix,
+                bool reverse,
                 sycl::nd_item<1> &item, 
-                char *is_valid_array,
+                char  *is_valid_array,
                 short *sh_prev_E,
                 short *sh_prev_H,
                 short *sh_prev_prev_H,

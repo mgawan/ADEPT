@@ -18,24 +18,25 @@ Committing the working ADEPT SYCL code with multiGPU support tested on:
 - Load the following modules on Cori: 
 
 ```bash
-module use /global/cfs/cdirs/mpccc/dwdoerf/cori-gpu/modulefiles
-module load dpc++
+module use /global/common/software/m1759/llvm/modulefiles
+module load llvm/nightly/20210706
 module load cgpu
-module load cuda
+module unload cuda
+module load cuda/10.1.243
 ```
 
 ### Instructions
-- Use CMake to generate the Makefiles using the following command: `cmake $ADEPT_PATH -DCMAKE_CXX_COMPILER=<PATH_TO dpcpp|clang++> -DADEPT_GPU=<Intel|NVIDIA> (default: Intel) ADEPT_INSTR=<ON|OFF> (default:ON) [OTHER CMAKE OPTIONS]`    
-- Make (and) install the ADEPT by running the following command: `make install -j 8`   
+- Use CMake to generate the Makefiles using the following command: `CXX=<path to: dpcpp|clang++> cmake $ADEPT_PATH -DADEPT_GPU=<NVIDIA|INTEL> (default: NVIDIA) ADEPT_INSTR=<ON|OFF> (default:ON) [OTHER CMAKE OPTIONS]`    
+- Make (and) install the ADEPT by running the following command: `make install -j 12`   
 
 ## Test Instructions
-- Navigate to: `cd $ADEPT_PATH/build`   
-- Run on Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 ./test_adept [NUM_ITERATIONS]`    
-- Run on DevCloud: `cd $ADEPT_PATH/build ; ./test_adept [NUM_ITERATIONS]`     
+- Navigate to: `cd $ADEPT_PATH/build`    
+- Run on Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 bash ../test_adept`    
+- Run on DevCloud: `cd $ADEPT_PATH/build ; bash../test_adept`     
 
 ## Run Datasets
 - Navigate to `cd $ADEPT_PATH/build`
-- Run on Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 ./run_datasets
+- Run on Cori: `srun --partition=gpu -C gpu -G 1 -t 2:00:00 --exclusive ./run_datasets`
 - Run on DevCloud: `cd $ADEPT_PATH/build ; ./run_datasets` 
 
 ## Roofline Analysis

@@ -28,14 +28,13 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <limits>
 #include <bits/stdc++.h>
+#include <thread>
 #include <functional>
 
-// constants
-constexpr int MAX_REF_LEN    =  1200;
-constexpr int MAX_QUERY_LEN  =   300;
-constexpr int GPU_ID         =     0;
+constexpr int MAX_REF_LEN    =      1200;
+constexpr int MAX_QUERY_LEN  =       600;
+constexpr int GPU_ID         =         0;
 
 constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
 
@@ -62,39 +61,29 @@ int verify_correctness(std::string file1, std::string file2);
 int 
 main(int argc, char* argv[])
 {
-    //
-    // Print banner
-    //
-    std::cout <<                               std::endl;
-    std::cout << "------------------------" << std::endl;
-    std::cout << "       MULTI GPU       " << std::endl;
-    std::cout << "------------------------" << std::endl;
-    std::cout <<                               std::endl;
-
-    //
-    // argparser
-    //
+    std::cout <<                                 std::endl;
+    std::cout << "--------------------------" << std::endl;
+    std::cout << "     MULTIGPU PROTEIN     " << std::endl;
+    std::cout << "--------------------------" << std::endl;
+    std::cout <<                                 std::endl;
 
     // check command line arguments
     if (argc < 4)
     {
-        cout << "USAGE: multi_gpu <reference_file> <query_file> <output_file> OPTIONAL: <expected_results_file>" << endl;
+        cout << "USAGE: asynch_protein <reference_file> <query_file> <output_file> OPTIONAL: <expected_results_file>" << std::endl;
         exit(-1);
     }
 
-    // command line arguments
     string refFile = argv[1];
     string queFile = argv[2];
-    string outFile = argv[3];
+    string out_file = argv[3];
     string expFile;
 
     if (argc == 5)
         expFile = argv[4];
 
     vector<string> ref_sequences, que_sequences;
-
-    string lineR, lineQ;
-
+    string   lineR, lineQ;
     ifstream ref_file(refFile);
     ifstream quer_file(queFile);
 
@@ -102,13 +91,6 @@ main(int argc, char* argv[])
 
     int totSizeA = 0, totSizeB = 0;
 
-    // ------------------------------------------------------------------------------------ //
-
-    //
-    // File parser
-    //
-
-    // print status
     std::cout << "STATUS: Reading ref and query files" << std::endl;
 
     // extract reference sequences
@@ -154,11 +136,34 @@ main(int argc, char* argv[])
         quer_file.close();
     }
 
-    if (ref_sequences.size() != que_sequences.size())
-    {
-        std::cerr << "FATAL: ref_sequences.size() != que_sequences.size()" << std::endl << std::flush;
-        exit (-2);
-    }
+    ADEPT::driver sw_driver;
+
+    // blosum 62 score matrix
+    std::array<short, 576> scores_matrix = {4 ,-1 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,0 ,-3 ,-2 ,0 ,-2 ,-1 ,0 ,-4 , -1 ,5 ,0 ,-2 ,
+                                            -3 ,1 ,0 ,-2 ,0 ,-3 ,-2 ,2 ,-1 ,-3 ,-2 ,-1 ,-1 ,-3 ,-2 ,-3 ,-1 ,0 ,-1 ,-4 ,
+                                            -2 ,0 ,6 ,1 ,-3 ,0 ,0 ,0 ,1 ,-3 ,-3 ,0 ,-2 ,-3 ,-2 ,1 ,0 ,-4 ,-2 ,-3 ,3 ,0 ,-1 ,-4 ,
+                                            -2 ,-2 ,1 ,6 ,-3 ,0 ,2 ,-1 ,-1 ,-3 ,-4 ,-1 ,-3 ,-3 ,-1 ,0 ,-1 ,-4 ,-3 ,-3 ,4 ,1 ,-1 ,-4 ,
+                                            0 ,-3 ,-3 ,-3 ,9 ,-3 ,-4 ,-3 ,-3 ,-1 ,-1 ,-3 ,-1 ,-2 ,-3 ,-1 ,-1 ,-2 ,-2 ,-1 ,-3 ,-3 ,-2 ,-4 ,
+                                            -1 ,1 ,0 ,0 ,-3 ,5 ,2 ,-2 ,0 ,-3 ,-2 ,1 ,0 ,-3 ,-1 ,0 ,-1 ,-2 ,-1 ,-2 ,0 ,3 ,-1 ,-4 ,
+                                            -1 ,0 ,0 ,2 ,-4 ,2 ,5 ,-2 ,0 ,-3 ,-3 ,1 ,-2 ,-3 ,-1 ,0 ,-1 ,-3 ,-2 ,-2 ,1 ,4 ,-1 ,-4 ,
+                                            0 ,-2 ,0 ,-1 ,-3 ,-2 ,-2 ,6 ,-2 ,-4 ,-4 ,-2 ,-3 ,-3 ,-2 ,0 ,-2 ,-2 ,-3 ,-3 ,-1 ,-2 ,-1 ,-4 ,
+                                            -2 ,0 ,1 ,-1 ,-3 ,0 ,0 ,-2 ,8 ,-3 ,-3 ,-1 ,-2 ,-1 ,-2 ,-1 ,-2 ,-2 ,2 ,-3 ,0 ,0 ,-1 ,-4 ,
+                                            -1 ,-3 ,-3 ,-3 ,-1 ,-3 ,-3 ,-4 ,-3 ,4 ,2 ,-3 ,1 ,0 ,-3 ,-2 ,-1 ,-3 ,-1 ,3 ,-3 ,-3 ,-1 ,-4 ,
+                                            -1 ,-2 ,-3 ,-4 ,-1 ,-2 ,-3 ,-4 ,-3 ,2 ,4 ,-2 ,2 ,0 ,-3 ,-2 ,-1 ,-2 ,-1 ,1 ,-4 ,-3 ,-1 ,-4 ,
+                                            -1 ,2 ,0 ,-1 ,-3 ,1 ,1 ,-2 ,-1 ,-3 ,-2 ,5 ,-1 ,-3 ,-1 ,0 ,-1 ,-3 ,-2 ,-2 ,0 ,1 ,-1 ,-4 ,
+                                            -1 ,-1 ,-2 ,-3 ,-1 ,0 ,-2 ,-3 ,-2 ,1 ,2 ,-1 ,5 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,1 ,-3 ,-1 ,-1 ,-4 ,
+                                            -2 ,-3 ,-3 ,-3 ,-2 ,-3 ,-3 ,-3 ,-1 ,0 ,0 ,-3 ,0 ,6 ,-4 ,-2 ,-2 ,1 ,3 ,-1 ,-3 ,-3 ,-1 ,-4 ,
+                                            -1 ,-2 ,-2 ,-1 ,-3 ,-1 ,-1 ,-2 ,-2 ,-3 ,-3 ,-1 ,-2 ,-4 ,7 ,-1 ,-1 ,-4 ,-3 ,-2 ,-2 ,-1 ,-2 ,-4 ,
+                                            1 ,-1 ,1 ,0 ,-1 ,0 ,0 ,0 ,-1 ,-2 ,-2 ,0 ,-1 ,-2 ,-1 ,4 ,1 ,-3 ,-2 ,-2 ,0 ,0 ,0 ,-4 ,
+                                            0 ,-1 ,0 ,-1 ,-1 ,-1 ,-1 ,-2 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,5 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-4 ,
+                                            -3 ,-3 ,-4 ,-4 ,-2 ,-2 ,-3 ,-2 ,-2 ,-3 ,-2 ,-3 ,-1 ,1 ,-4 ,-3 ,-2 ,11 ,2 ,-3 ,-4 ,-3 ,-2 ,-4 ,
+                                            -2 ,-2 ,-2 ,-3 ,-2 ,-1 ,-2 ,-3 ,2 ,-1 ,-1 ,-2 ,-1 ,3 ,-3 ,-2 ,-2 ,2 ,7 ,-1 ,-3 ,-2 ,-1 ,-4 ,
+                                            0 ,-3 ,-3 ,-3 ,-1 ,-2 ,-2 ,-3 ,-3 ,3 ,1 ,-2 ,1 ,-1 ,-2 ,-2 ,0 ,-3 ,-1 ,4 ,-3 ,-2 ,-1 ,-4 ,
+                                            -2 ,-1 ,3 ,4 ,-3 ,0 ,1 ,-1 ,0 ,-3 ,-4 ,0 ,-3 ,-3 ,-2 ,0 ,-1 ,-4 ,-3 ,-3 ,4 ,1 ,-1 ,-4 ,
+                                            -1 ,0 ,0 ,1 ,-3 ,3 ,4 ,-2 ,0 ,-3 ,-3 ,1 ,-1 ,-3 ,-1 ,0 ,-1 ,-3 ,-2 ,-2 ,1 ,4 ,-1 ,-4 ,
+                                            0 ,-1 ,-1 ,-1 ,-2 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-2 ,0 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-1 ,-4 ,
+                                            -4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,-4 ,1
+                                            }; 
 
     // ------------------------------------------------------------------------------------ //
 
@@ -166,25 +171,23 @@ main(int argc, char* argv[])
     // run ADEPT on multiple GPUs
     //
 
-    // print status
-    std::cout << "STATUS: Launching driver" << std::endl << std::endl;
-
     // get batch size
     auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
     size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
-    std::array<short, 2> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
+    std::cout << "STATUS: Launching driver" << std::endl << std::endl;
+
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix.data(), gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 
     // print results from all GPUs
 
     // results
-    ofstream results_file(outFile);
+    ofstream results_file(out_file);
     int tot_gpus = all_results.gpus;
 
     std::cout << std::endl << "STATUS: Writing results..." << std::endl;
@@ -213,19 +216,13 @@ main(int argc, char* argv[])
     for(int i = 0; i < tot_gpus; i++)
         all_results.results[i].free_results();
 
-    // ------------------------------------------------------------------------------------ //
-
-    //
-    // Verification
-    //
-
     int status = 0;
 
     // if expected file is provided, then check for correctness, otherwise exit
     if (expFile != "")
     {
         std::cout << "\nSTATUS: Checking output against: " << expFile << std::endl << std::endl;
-        status = verify_correctness(expFile, outFile);
+        status = verify_correctness(expFile, out_file);
 
         if (status)
             std::cout << "STATUS: Correctness test failed." << std::endl << std::endl;
@@ -241,9 +238,8 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
 
     return status;
-}
 
-// ------------------------------------------------------------------------------------ //
+}
 
 //
 // verify correctness

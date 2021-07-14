@@ -26,7 +26,7 @@
 
 # print usage
 function usage() {
-    echo "USAGE: test_adept.sh <adept_build>"
+    echo "USAGE: run_datasets.sh <adept_build>"
     echo "adept_build: Path to ADEPT build directory. default: $PWD"
     echo ""
 }
@@ -53,21 +53,49 @@ if [ -f "$ADEPT/log_SYCL.out" ]; then
     rm $ADEPT/log_SYCL.out;
 fi
 
-# test datasets
+# test DNA datasets
 for i in $(seq 1 3); do
-    printf "\nRunning dataset: $i out of 3\n\n"; 
+    printf "\nRunning dna dataset: $i out of 3\n\n"; 
 
-    # ALIGNMENTS
-    REF=/global/homes/m/mhaseeb/repos/muaaz_adept/build/align_ds$i.out
-    ALN=./align_ds$i.out; 
+    # Alignments
+    REF=/global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/align_ds$i.out
+    ALN=./dna_align_ds$i.out; 
 
-    ./examples/multi_gpu/multi_gpu /global/cscratch1/sd/mhaseeb/sw-benchmarks/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
+    ./examples/multi_gpu/multi_gpu /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/dna-testing/read_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
 
     # if output was produced (adept ran successfully?)
     if [ -f "$ALN" ]; then
         DIFF=$(diff $REF $ALN);
     else 
-        echo "ERROR: Output file does not exist";
+        echo "FAILURE: ADEPT failed for dataset $i";
+        break ;
+    fi
+
+    # check if any diff?
+    if [ "$DIFF" == "" ]; then
+        printf "\nSUCCESS\n\n";
+        # echo "Removing $ALN" ; rm $ALN ;
+    else
+        echo "$DIFF" >> ./$ALN.diff ;
+    fi
+
+done
+
+# test protein datasets
+for i in $(seq 1 3); do
+    printf "\nRunning protein dataset: $i out of 3\n\n"; 
+
+    # Alignments
+    REF=/global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/align_ds$i.out
+    ALN=./protein_align_ds$i.out; 
+
+    ./examples/multigpu_protein/multigpu_protein /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/ref_set_$i.fasta /global/cscratch1/sd/mhaseeb/sw-benchmarks/protein-testing/que_set_$i.fasta  $ALN >> $ADEPT/log_SYCL.out 2>&1;
+
+    # if output was produced (adept ran successfully?)
+    if [ -f "$ALN" ]; then
+        DIFF=$(diff $REF $ALN);
+    else 
+        echo "FAILURE: ADEPT failed for dataset $i";
         break ;
     fi
 
