@@ -52,18 +52,16 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
         rem -=offset;
 
         short tempVal = sg.shuffle_down(val, offset);
-        sg.barrier();
-
         newInd  = sg.shuffle_down(ind, offset);
-        sg.barrier();
-
         newInd2 = sg.shuffle_down(ind2, offset);
+
+        // make sure all shuffles are done
         sg.barrier();
 
         val = sycl::max(val, tempVal);
 
 #if defined (INTEL_GPU)
-        // explicitly handle the undefined cases for Intel GPUs
+        // explicitly handle the undefined cases for Intel GPU
         if (laneId + offset >= warpSize)
         {
             val = 0;
