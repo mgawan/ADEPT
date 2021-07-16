@@ -118,6 +118,8 @@ printf "\nRunning test: 4 out of 5\n\n";
 # run simple asynch_protein example
 ./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta $ALN $REF;
 
+test_output "$REF" "$ALN"
+
 printf "\nRunning test: 5 out of 5\n\n";
 
 # run simple asynch_protein example

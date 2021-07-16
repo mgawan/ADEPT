@@ -64,7 +64,7 @@ short
 warpReduceMax(short val, int lengthSeqB);
 
 SYCL_EXTERNAL short
-blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item,
+blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, bool reverse, sycl::nd_item<1> &item,
                                     short *locTots, short *locInds, short *locInds2);
 
 short

@@ -40,22 +40,37 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
 
     auto sg = item.get_sub_group();
     int warpSize = sg.get_local_range()[0];
+    short laneId = sg.get_local_id();
 
     // unsigned mask  = __ballot_sync(0xffffffff, item.get_local_id(0)< lengthSeqB);  // item.get_local_range().get(2)
 
-    int rem = warpSize;
+    int rem = sycl::min(lengthSeqB, warpSize);
     // unsigned newmask;
 
     for(int offset = rem/2; rem > 0; offset = sycl::max(1, rem/2))
     {
         rem -=offset;
 
-        int tempVal = sg.shuffle_down(val, offset);
-
-        val = sycl::max(static_cast<int>(val), tempVal);
+        short tempVal = sg.shuffle_down(val, offset);
+        sg.barrier();
 
         newInd  = sg.shuffle_down(ind, offset);
+        sg.barrier();
+
         newInd2 = sg.shuffle_down(ind2, offset);
+        sg.barrier();
+
+        val = sycl::max(val, tempVal);
+
+#if defined (INTEL_GPU)
+        // explicitly handle the undefined cases for Intel GPUs
+        if (laneId + offset >= warpSize)
+        {
+            val = 0;
+            newInd = 0;
+            newInd2 = 0;
+        }
+#endif // INTEL_GPU
 
         if(val > myMax)
         {
@@ -95,7 +110,7 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
 // ------------------------------------------------------------------------------------ //
 
 SYCL_EXTERNAL short
-Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
+Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
 {
     auto sg      = item.get_sub_group();
     auto gp      = item.get_group();
@@ -109,7 +124,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     short myInd  = myIndex;
     short myInd2 = myIndex2;
 
-    myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
+    myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, blockSize, reverse, item);
 
     if(laneId == 0)
         locTots[warpId] = myVal;
@@ -139,7 +154,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
 
     if(warpId == 0)
     {
-        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
+        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, nblocks, reverse, item);
         myIndex  = myInd;
         myIndex2 = myInd2;
     }
@@ -398,9 +413,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         BARRIER(gp); // why do I need this? commenting it out breaks it
     }
 
-    BARRIER(gp); // why do I need this? commenting it out breaks it
-
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {
@@ -693,7 +706,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         BARRIER(gp); // why do I need this? commenting it out breaks it
     }
 
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {
