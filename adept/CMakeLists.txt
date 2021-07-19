@@ -25,3 +25,11 @@ set_property(TARGET adept_obj adept_lib_shared PROPERTY INTERFACE_COMPILE_OPTION
 get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 install(TARGETS adept_lib_shared LIBRARY DESTINATION lib)
 
+#
+# Python bindings
+#
+if (ADEPT_USE_PYTHON)
+    message(STATUS "Adding Adept/python...")
+    add_subdirectory(python)
+endif()
+

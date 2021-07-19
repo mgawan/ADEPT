@@ -1,4 +1,4 @@
-#!/bin/bash -le
+#!/bin/bash
 
 # MIT License
 #

@@ -77,26 +77,29 @@ endif()
 #       Add sub-directories
 ##########################################################################################
 
-include_directories("adept")
-
-# Add adept library code
-message(STATUS "Adding Adept library")
-add_subdirectory(adept)
-
-
 # Add pyAdept
 option(ADEPT_USE_PYTHON "Adding PyAdept" OFF)
 
 if (ADEPT_USE_PYTHON)
-    message(STATUS "Adding Python Adept (PyAdept)")
+    message(STATUS "Adding PyAdept support...")
     add_subdirectory(pyadept)
+    message(STATUS "Adding external...")
+    add_subdirectory(external)
 endif()
+
+# include Adept library
+include_directories("adept")
+
+# Add adept library code
+message(STATUS "Adding Adept library...")
+add_subdirectory(adept)
+
 
 # Add examples
 option(BUILD_EXAMPLES "Building Examples" ON)
 
 if(BUILD_EXAMPLES)
-    message(STATUS "Adding Adept examples")
+    message(STATUS "Adding Adept examples...")
     add_subdirectory(examples)
 endif()
 
@@ -104,7 +107,7 @@ endif()
 option(BUILD_TESTS "Building Tests" ON)
 
 if(BUILD_TESTS)
-    message(STATUS "Adding ADEPT tests")
+    message(STATUS "Adding ADEPT tests...")
     include(CTest)
 
     # we need examples for testing
