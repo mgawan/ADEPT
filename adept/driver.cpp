@@ -36,6 +36,8 @@ using namespace ADEPT;
 // warp size
 static constexpr size_t warpSize = 32;
 
+// ------------------------------------------------------------------------------------ //
+
 namespace DNA
 {
 /* Classes used to name the kernels for the runtime.
@@ -105,7 +107,7 @@ struct ADEPT::adept_stream
     }
 };
 
-
+// ------------------------------------------------------------------------------------ //
 
 void 
 ADEPT::aln_results::free_results()
@@ -115,6 +117,17 @@ ADEPT::aln_results::free_results()
     delete[] query_begin;
     delete[] query_end;
     delete[] top_scores;
+}
+
+// ------------------------------------------------------------------------------------ //
+
+double 
+driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, int gpu_id)
+{
+    auto dev = manager.get_device(gpu_id);
+
+    return this->initialize(scores, g_scores, _algorithm, _sequence, _cigar_avail, _max_ref_size, _max_query_size, _tot_alns, _batch_size, &dev);
+
 }
 
 // ------------------------------------------------------------------------------------ //
@@ -148,13 +161,15 @@ driver::initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ
     else
     {
         scoring_matrix_cpu = scores;
-        constexpr short temp_encode[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                           23,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                           0,0,0,0,0,0,0,0,0,0,20,4,3,6,
-                           13,7,8,9,0,11,10,12,2,0,14,5,
-                           1,15,16,0,19,17,22,18,21};
+        constexpr short temp_encode[] = {
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        23,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,20,4,3,6,
+                                        13,7,8,9,0,11,10,12,2,0,14,5,
+                                        1,15,16,0,19,17,22,18,21
+                                        };
         
         encoding_matrix = sycl::malloc_host<short>(ENCOD_MAT_SIZE, curr_stream->stream);
 
@@ -688,8 +703,10 @@ driver::allocate_gpu_mem()
 // ------------------------------------------------------------------------------------ //
 
 size_t 
-ADEPT::get_batch_size(const sycl::device &dev0, int max_q_size, int max_r_size, int per_gpu_mem)
+ADEPT::get_batch_size(const int dev_id, int max_q_size, int max_r_size, int per_gpu_mem)
 {
+    auto dev0 = driver::manager.get_device(dev_id);
+
     // get the global memory size
     auto globalMem = dev0.get_info<info::device::global_mem_size>();
 
@@ -830,22 +847,15 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
 
 all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_)
 {
-    // get all the gpu devices
-    auto gpus = sycl::device::get_devices(info::device_type::gpu);
-    int num_gpus = gpus.size();
+    // get number of GPUs
+    int num_gpus = driver::manager.num_devices();
 
-    // see if at least one GPU found
-    if (num_gpus < 1)
-    {
-        std::cerr << "ABORT: No GPU device found on this platform" << std::endl << std::flush;
-        exit(-1);
-    }
 
     int total_alignments = ref_sequences.size();
 
     // adjust batch size if not provided
      if(batch_size_ == -1)
-        batch_size_ = ADEPT::get_batch_size(gpus[0], max_que_size, max_ref_size, 100);
+        batch_size_ = ADEPT::get_batch_size(0, max_que_size, max_ref_size, 100);
 
     int batch_size = batch_size_;
 
@@ -899,7 +909,9 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<s
     // wrapper lambda function to provide thread_ids
     auto thread_launcher = [&](int thread_id)
     {
-        global_results.results[thread_id] = ADEPT::thread_launch(ref_batch_gpu[thread_id], que_batch_gpu[thread_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, &gpus[thread_id], scores, thread_id, gaps);
+        auto gpu = driver::manager.get_device(thread_id);
+
+        global_results.results[thread_id] = ADEPT::thread_launch(ref_batch_gpu[thread_id], que_batch_gpu[thread_id], algorithm, sequence, cigar_avail, max_ref_size, max_que_size, batch_size, &gpu, scores, thread_id, gaps);
     };
 
     // launch a thread for each GPU

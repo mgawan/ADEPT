@@ -139,8 +139,7 @@ main(int argc, char* argv[])
     int work_cpu = 0;
 
     // get batch size
-    auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
-    size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
+    size_t batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     ADEPT::driver sw_driver;
 
@@ -174,7 +173,7 @@ main(int argc, char* argv[])
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
     int total_alignments = ref_sequences.size();
 
-    sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, &gpus[GPU_ID]);
+    sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
 
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 

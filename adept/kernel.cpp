@@ -108,7 +108,7 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
 // ------------------------------------------------------------------------------------ //
 
 SYCL_EXTERNAL short
-Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
+Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myIndex2, int lengthSeqB, bool reverse, sycl::nd_item<1> &item, short* locTots, short *locInds, short *locInds2)
 {
     auto sg      = item.get_sub_group();
     auto gp      = item.get_group();
@@ -122,7 +122,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
     short myInd  = myIndex;
     short myInd2 = myIndex2;
 
-    myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, blockSize, reverse, item);
+    myVal  = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
 
     if(laneId == 0)
         locTots[warpId] = myVal;
@@ -411,7 +411,7 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         BARRIER(gp); // why do I need this? commenting it out breaks it
     }
 
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {
@@ -704,7 +704,7 @@ Akernel::aa_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
         BARRIER(gp); // why do I need this? commenting it out breaks it
     }
 
-    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
+    thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 
     if(reverse == true)
     {

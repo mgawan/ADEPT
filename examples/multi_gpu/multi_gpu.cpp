@@ -171,7 +171,7 @@ main(int argc, char* argv[])
 
     // get batch size
     auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
-    size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
+    size_t batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     std::array<short, 2> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
