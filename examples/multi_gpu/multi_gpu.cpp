@@ -177,7 +177,7 @@ main(int argc, char* argv[])
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 

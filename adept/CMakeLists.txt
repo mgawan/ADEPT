@@ -18,6 +18,7 @@ set(ADEPT_HEADERS "*kernel.hpp driver.hpp")
 
 add_library(adept_obj OBJECT ${SOURCE_FILES})
 add_library(adept_lib_shared SHARED $<TARGET_OBJECTS:adept_obj>)
+
 set_property(TARGET adept_obj adept_lib_shared PROPERTY CUDA_ARCHITECTURES 50 60 70 80)
 
 set_property(TARGET adept_obj adept_lib_shared PROPERTY INTERFACE_COMPILE_OPTIONS)

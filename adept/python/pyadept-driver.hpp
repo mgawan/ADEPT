@@ -35,7 +35,26 @@
 #include "pybind11/pytypes.h"
 #include "pybind11/stl.h"
 
-// #include <driver.hpp>
+#include <driver.hpp>
 
 // functions that can be called here
-int add(int, int);
+
+
+namespace py = pybind11;
+using namespace py::literals;
+
+namespace pydriver
+{
+// bind enums
+void options(py::module &adp);
+
+// bind required structure
+void structs(py::module &adp);
+
+// bind the driver class
+void driver(py::module &adp);
+
+// bind functions
+void functions(py::module &adp);
+
+}

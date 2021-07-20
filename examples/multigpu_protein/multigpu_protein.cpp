@@ -180,7 +180,7 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix.data(), gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix.data(), gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 

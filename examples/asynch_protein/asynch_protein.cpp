@@ -173,7 +173,7 @@ main(int argc, char* argv[])
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
     int total_alignments = ref_sequences.size();
 
-    sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
+    sw_driver.initialize(scores_matrix.data(), gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
 
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 

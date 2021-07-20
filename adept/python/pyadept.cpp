@@ -34,7 +34,18 @@ using namespace py::literals;
 
 PYBIND11_MODULE(pyadept, adp) 
 {
-    adp.doc() = "pybind11 example plugin"; // optional module docstring
+    adp.doc() = "Python Driver for ADEPT SYCL";
 
-    adp.def("add", &add, "A function which adds two numbers");
+    // bind enums
+    pydriver::options(adp);
+
+    // bind structs
+    pydriver::structs(adp);
+
+    // bind driver
+    pydriver::driver(adp);
+
+    // bind functions
+    pydriver::functions(adp);
+
 }
