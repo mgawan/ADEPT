@@ -22,12 +22,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "pyadept-driver.hpp"
 
-namespace py = pybind11;
-using namespace py::literals;
+#pragma once
 
-int add(int i, int j)
-{
-    return i + j;
-}
+#include "pybind11/pybind11.h"
+#include "pybind11/cast.h"
+#include "pybind11/embed.h"
+#include "pybind11/eval.h"
+#include "pybind11/functional.h"
+#include "pybind11/iostream.h"
+#include "pybind11/numpy.h"
+#include "pybind11/pytypes.h"
+#include "pybind11/stl.h"
+
+// #include <driver.hpp>
+
+// functions that can be called here
+int add(int, int);

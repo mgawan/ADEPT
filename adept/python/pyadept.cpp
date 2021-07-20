@@ -22,12 +22,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//
+// module: pyadept
+//
+
+#include "pyadept.hpp"
 #include "pyadept-driver.hpp"
 
 namespace py = pybind11;
 using namespace py::literals;
 
-int add(int i, int j)
+PYBIND11_MODULE(pyadept, adp) 
 {
-    return i + j;
+    adp.doc() = "pybind11 example plugin"; // optional module docstring
+
+    adp.def("add", &add, "A function which adds two numbers");
 }

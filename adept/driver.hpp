@@ -41,6 +41,7 @@ const int SHMEM_BYTES = 48000;
 //
 namespace ADEPT
 {
+
 //
 // Enums
 //

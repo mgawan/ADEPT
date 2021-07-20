@@ -10,7 +10,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 file(GLOB SOURCE_FILES *.cpp)
 
-set(HEADER_FILES "*kernel.hpp driver.hpp")
+set(ADEPT_HEADERS "*kernel.hpp driver.hpp")
 
 # enable_language(CUDA)
 
