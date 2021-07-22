@@ -173,11 +173,11 @@ main(int argc, char* argv[])
     auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
     size_t batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
-    std::array<short, 2> scores = {MATCH, MISMATCH};
+    std::vector<short> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores, gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 

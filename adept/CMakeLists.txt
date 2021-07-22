@@ -26,6 +26,12 @@ set_property(TARGET adept_obj adept_lib_shared PROPERTY INTERFACE_COMPILE_OPTION
 get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 install(TARGETS adept_lib_shared LIBRARY DESTINATION lib)
 
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 #
 # Python bindings
 #

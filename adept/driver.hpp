@@ -63,6 +63,7 @@ enum SEQ_TYPE{DNA, AA};
 struct aln_results
 {
     short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
+    int size;
     aln_results() = default;
     void free_results();
 };
@@ -107,17 +108,21 @@ struct gap_scores
 //
 struct all_alns
 {
-    aln_results* results;
+    std::vector<aln_results> results;
     int per_gpu;
     int left_over;
     int gpus;
 
     all_alns(int count)
     {
-        results = new aln_results[count];
+        results.reserve(count);
+
+        // insert dummy aln_results here
+        for (int i = 0; i < count; i++)
+            results.push_back(aln_results());
         per_gpu = 0;
         left_over = 0;
-        gpus = 0;
+        gpus = count;
     }
 };
 
@@ -221,9 +226,9 @@ public:
     // default constructor
     driver() = default;
 
-    double initialize(short scores[], gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int gpu_id = 0); // each adept_dna object will have a unique sycl queue
+    double initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int gpu_id = 0); // each adept_dna object will have a unique sycl queue
 
-    double initialize(short scores[], gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *device); // each adept_dna object will have a unique sycl queue
+    double initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *device); // each adept_dna object will have a unique sycl queue
 
     std::array<double, 4> kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
     double mem_cpy_dth(int offset = 0);
@@ -237,9 +242,9 @@ public:
 };
 
 // internal function
-aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id, gap_scores gaps);
+aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, std::vector<short> &scores, int thread_id, gap_scores gaps);
 
-all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_ = -1);
+all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, std::vector<short> &scores, gap_scores gaps, int batch_size_ = -1);
 
 size_t get_batch_size(const int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 

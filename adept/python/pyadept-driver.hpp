@@ -35,16 +35,15 @@
 #include "pybind11/pytypes.h"
 #include "pybind11/stl.h"
 
+// ADEPT driver
 #include <driver.hpp>
-
-// functions that can be called here
-
 
 namespace py = pybind11;
 using namespace py::literals;
 
 namespace pydriver
 {
+
 // bind enums
 void options(py::module &adp);
 
