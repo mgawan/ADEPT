@@ -170,8 +170,7 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
     // get batch size
-    auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
-    size_t batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);
+    size_t batch_size = (ref_sequences.size()/2) + 1;
 
     std::vector<short> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
