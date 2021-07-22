@@ -40,22 +40,35 @@ Akernel::warpReduceMax_with_index(short val, short&myIndex, short&myIndex2, int 
 
     auto sg = item.get_sub_group();
     int warpSize = sg.get_local_range()[0];
+    short laneId = sg.get_local_id();
 
     // unsigned mask  = __ballot_sync(0xffffffff, item.get_local_id(0)< lengthSeqB);  // item.get_local_range().get(2)
 
-    int rem = warpSize;
+    int rem = sycl::min(lengthSeqB, warpSize);
     // unsigned newmask;
 
     for(int offset = rem/2; rem > 0; offset = sycl::max(1, rem/2))
     {
         rem -=offset;
 
-        int tempVal = sg.shuffle_down(val, offset);
-
-        val = sycl::max(static_cast<int>(val), tempVal);
-
+        short tempVal = sg.shuffle_down(val, offset);
         newInd  = sg.shuffle_down(ind, offset);
         newInd2 = sg.shuffle_down(ind2, offset);
+
+        // make sure all shuffles are done
+        sg.barrier();
+
+        val = sycl::max(val, tempVal);
+
+#if defined (INTEL_GPU)
+        // explicitly handle the undefined cases for Intel GPU
+        if (laneId + offset >= warpSize)
+        {
+            val = 0;
+            newInd = 0;
+            newInd2 = 0;
+        }
+#endif // INTEL_GPU
 
         if(val > myMax)
         {
@@ -139,7 +152,7 @@ Akernel::blockShuffleReduce_with_index(short myVal, short& myIndex, short& myInd
 
     if(warpId == 0)
     {
-        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, lengthSeqB, reverse, item);
+        myVal    = warpReduceMax_with_index(myVal, myInd, myInd2, nblocks, reverse, item);
         myIndex  = myInd;
         myIndex2 = myInd2;
     }
@@ -397,8 +410,6 @@ Akernel::dna_kernel(char* seqA_array, char* seqB_array, int* prefix_lengthA,
 
         BARRIER(gp); // why do I need this? commenting it out breaks it
     }
-
-    BARRIER(gp); // why do I need this? commenting it out breaks it
 
     thread_max = blockShuffleReduce_with_index(thread_max, thread_max_i, thread_max_j, minSize, reverse, item, locTots, locInds, locInds2);  // thread 0 will have the correct values
 

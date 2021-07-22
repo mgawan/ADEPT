@@ -170,14 +170,13 @@ main(int argc, char* argv[])
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
     // get batch size
-    auto gpus = sycl::device::get_devices(sycl::info::device_type::gpu);
-    size_t batch_size = ADEPT::get_batch_size(gpus[0], MAX_QUERY_LEN, MAX_REF_LEN, 100);
+    size_t batch_size = (ref_sequences.size()/2) + 1;
 
-    std::array<short, 2> scores = {MATCH, MISMATCH};
+    std::vector<short> scores = {MATCH, MISMATCH};
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
     // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores.data(), gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores, gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 

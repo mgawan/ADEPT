@@ -29,14 +29,15 @@ if (ADEPT_INSTR)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -DADEPT_INSTR")
 endif()
 
-option(BUILD_EXAMPLES "Building Examples" ON)
-option(BUILD_TESTS "Building Tests" ON)
-
 ##########################################################################################
 #       GPU selection
 ##########################################################################################
 
+# defalt GPU type
 set(default_gpu "NVIDIA")
+
+# list of supported GPUs
+set(GPUS "INTEL" "NVIDIA")
 
 if (NOT ADEPT_GPU)
     message(STATUS "Setting GPU type to '${default_gpu}' as GPU not specified.")
@@ -50,6 +51,12 @@ else()
     message(STATUS "The selected GPU type is ${ADEPT_GPU}.")
 endif()
 
+# check if correct GPU type chosen
+if (NOT ADEPT_GPU IN_LIST GPUS)
+    message(FATAL_ERROR "Error! ADEPT_GPU must be set to either INTEL or NVIDIA")
+endif()
+
+# enable GPU specific DPC++ flags
 if (ADEPT_GPU STREQUAL "NVIDIA")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
 
@@ -64,30 +71,43 @@ elseif (ADEPT_GPU STREQUAL "AMD")
     # do nothing
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAMD_GPU")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAMD_GPU")
-
 endif()
 
 ##########################################################################################
 #       Add sub-directories
 ##########################################################################################
 
+# Add pyAdept
+option(ADEPT_USE_PYTHON "Adding PyAdept" OFF)
+
+if (ADEPT_USE_PYTHON)
+    message(STATUS "Adding PyAdept support...")
+    add_subdirectory(pyadept)
+    message(STATUS "Adding external...")
+    add_subdirectory(external)
+endif()
+
+# include Adept library
 include_directories("adept")
 
 # Add adept library code
-message(STATUS "Adding Adept library")
+message(STATUS "Adding Adept library...")
 add_subdirectory(adept)
 
+
 # Add examples
+option(BUILD_EXAMPLES "Building Examples" ON)
+
 if(BUILD_EXAMPLES)
-    message(STATUS "Adding Adept examples")
+    message(STATUS "Adding Adept examples...")
     add_subdirectory(examples)
 endif()
 
-# Add tests
+# Add CTests
+option(BUILD_TESTS "Building Tests" ON)
+
 if(BUILD_TESTS)
-
-    message(STATUS "Adding ADEPT tests")
-
+    message(STATUS "Adding ADEPT tests...")
     include(CTest)
 
     # we need examples for testing
@@ -110,7 +130,7 @@ endif()
 #       Configure testing scripts
 ##########################################################################################
 
-# install the test script
+# install the bash scripts
 if(NOT BASH_EXECUTABLE)
     set(BASH_EXECUTABLE "/bin/bash")
 endif()

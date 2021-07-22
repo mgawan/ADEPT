@@ -30,6 +30,7 @@
 #include <thread>
 #include <CL/sycl.hpp>
 #include "instrument.hpp"
+#include <stdexcept>
 
 // set shared memory setting to 48KB
 const int SHMEM_BYTES = 48000;
@@ -41,6 +42,10 @@ const int SHMEM_BYTES = 48000;
 //
 namespace ADEPT
 {
+
+namespace options
+{
+
 //
 // Enums
 //
@@ -48,15 +53,26 @@ enum ALG_TYPE{SW, NW};
 enum CIGAR{NO, YES};
 enum SEQ_TYPE{DNA, AA};
 
+} // namespace options
+
+// ------------------------------------------------------------------------------------ //
+
 //
 // struct aln_results
 //
-struct aln_results{
+struct aln_results
+{
     short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
+    int size;
     aln_results() = default;
     void free_results();
 };
 
+// ------------------------------------------------------------------------------------ //
+
+//
+// struct gap_scores
+//
 struct gap_scores
 {
     short open;
@@ -67,32 +83,104 @@ struct gap_scores
         open = 0;
         extend = 0;
     }
-    gap_scores(short open_, short extend_){
+    gap_scores(short open_, short extend_)
+    {
         open = open_;
         extend = extend_;
     }
+
+    void set_scores(short open_, short extend_)
+    {
+        open = open_;
+        extend = extend_;
+    }
+
+    std::array<short, 2> get_scores()
+    {
+        return {open, extend};
+    }
 };
 
+// ------------------------------------------------------------------------------------ //
+
+//
+// struct all_alns
+//
 struct all_alns
 {
-    aln_results* results;
+    std::vector<aln_results> results;
     int per_gpu;
     int left_over;
     int gpus;
 
     all_alns(int count)
     {
-        results = new aln_results[count];
+        results.reserve(count);
+
+        // insert dummy aln_results here
+        for (int i = 0; i < count; i++)
+            results.push_back(aln_results());
         per_gpu = 0;
         left_over = 0;
-        gpus = 0;
+        gpus = count;
     }
 };
+
+// ------------------------------------------------------------------------------------ //
+
+//
+// struct gpu_manager
+//
+struct gpu_manager
+{
+    std::vector<sycl::device> devices;
+
+    gpu_manager()
+    { 
+        devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+
+        auto ndev = [&]() { if (devices.size() < 1) throw std::runtime_error("ADEPT ERROR: No GPU device found on this platform"); };
+
+        // check for GPU devices, throw runtime error
+        // ndev();
+
+        //
+        // explicit exception handling?
+        //
+        try
+        {
+            ndev();
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << e.what() << std::endl;
+            std::cerr << "Using sycl::device_type::all" << std::endl << std::flush;
+
+            // initialize devices with sycl::info::device_type::all (at least the host)
+            devices = sycl::device::get_devices(sycl::info::device_type::all);
+        }
+    };
+
+    ~gpu_manager()
+    {
+        devices.clear();
+    };
+    
+    int num_devices() { return devices.size(); }
+
+    auto& get_device(int gpu_id) { return devices[gpu_id % devices.size()]; }
+
+    bool isValidID(int gpu_id) { return (gpu_id >= 0 && gpu_id < devices.size()) ; }
+};
+
+// ------------------------------------------------------------------------------------ //
 
 //
 // struct adept_stream
 //
 struct adept_stream;
+
+// ------------------------------------------------------------------------------------ //
 
 //
 // class driver
@@ -102,9 +190,9 @@ class driver
 private:
     short match_score, mismatch_score, gap_start, gap_extend;
     sycl::device *device;
-    ALG_TYPE algorithm;
-    SEQ_TYPE sequence;
-    CIGAR cigar_avail;
+    options::ALG_TYPE algorithm;
+    options::SEQ_TYPE sequence;
+    options::CIGAR cigar_avail;
     adept_stream *curr_stream;
 
     int max_ref_size, max_que_size;
@@ -131,10 +219,17 @@ private:
     int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
 
 public:
+
+    // device manager
+    static gpu_manager manager;
+
     // default constructor
     driver() = default;
 
-    double initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *dev); // each adept_dna object will have a unique cuda stream
+    double initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int gpu_id = 0); // each adept_dna object will have a unique sycl queue
+
+    double initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, sycl::device *device); // each adept_dna object will have a unique sycl queue
+
     std::array<double, 4> kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
     double mem_cpy_dth(int offset = 0);
     aln_results get_alignments();
@@ -146,10 +241,11 @@ public:
     void set_gap_scores(short _gap_open, short _gap_extend);
 };
 
+// internal function
+aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, std::vector<short> &scores, int thread_id, gap_scores gaps);
 
-aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, sycl::device *device, short scores[], int thread_id, gap_scores gaps);
-    
-all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_ = -1);
+all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, std::vector<short> &scores, gap_scores gaps, int batch_size_ = -1);
 
-size_t get_batch_size(const sycl::device &device, int max_q_size, int max_r_size, int per_gpu_mem = 100);
-}
+size_t get_batch_size(const int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
+
+} // namespace ADEPT
