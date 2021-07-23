@@ -1,12 +1,15 @@
 
 import os
-import numpy
+import numpy as np
 import pyadept as pa
 from pyadept import options as opts
+import time
+import math
 
 MAX_REF_LEN    =      1200
 MAX_QUERY_LEN  =       600
 GPU_ID         =         0
+DATA_SIZE      = math.inf
 
 MATCH          =  3
 MISMATCH       = -3
@@ -14,9 +17,35 @@ GAP_OPEN       = -6
 GAP_EXTEND     = -1
 
 
-ref = ["PIAAYKPRSNEILWDGYGVPHIYGVDAPSAFYGYGWAQARSHGDNILRLYGEARGKGAEYWGPDYEQTTVWLLTNGVPERAQQWYAQQSPDFRANLDAFAAGINAYAQQNPDDISPDVRQVLPVSGADVVAHAHRLMNFLYVASPGRTLGEGXSNSWAVAPGKTANGNALLLQNPHLSWTTDYFTYYEAHLVTPDFEIYGATQIGLPVIRFAFNQRMGITNTVNGMVGATNYRLTLQDGGYLYDGQVRPFERPQASYRLRQADGTTVDKPLEIRSSVHGPVFERADGTAVAVRVAGLDRPGMLEQYFDMITADSFDDYEAALARMQVPTFNIVYADREGTINYSFNGVAPKRAEGDIAFWQGLVPGDSSRYLWTETHPLDDLPRVTNPPGGFVQNSNDPPWTPTWPVTYTPKDFPSYLAPQTPHSLRAQQSVRLMSENDDLTLERFMALQLSHRAVMADRTLPDLIPAALIDPDPEVQAAARLLAAWDREFTSDSRAALLFEEWARLFAGQNFAGQAGFATPWSLDKPVSTPYGVRDPKAAVDQLRTAIANTKRKYGAIDRPFGDASRMILNDVNVPGAAGYGNLGSFRVFTWSDPDENGVRTPVHGETWVAMIEFSTPVRAYGLMSYGNSRQPGTTHYSDQIERVSRADFRELLLRREQVEAAVQERTPFNFK"]
+ref = []
+que = []
 
-que = ["GIPADNLQSRAKASFDTRVAAAELALNRGVVPSFANGEELLYRNPDPDNTDPSFIASFTKGLPHDDNGAIIDPDDFLAFVRAINSGDEKEIADLTLGPARDPETGLPIWRSDLANSLELEVRGWENSSAGLTFDLEGPDAQSIAMPPAPVLTSPELVAEIAELYLMALGREIEFSEFDSPKNAEYIQFAIDQLNGLEWFNTPAKLGDPPAEIRRRRGEVTVGNLFRGILPGSEVGPYLSQYIIVGSKQIGSATVGNKTLVSPNAADEFDGEIAYGSITISQRVRIATPGRDFMTDLKVFLDVQDAADFRGFESYEPGARLIRTIRDLATWVHFDALYEAYLNACLILLANGVPFDPNLPFQQEDKLDNQDVFVNFGSAHVLSLVTEVATRALKAVRYQKFNIHRRLRPEATGGLISVNKIAAQKGESIFPEVDLAVEELGDILEKAEISNRKQNIADGDPDPDPSFLLPMAFAEGSPFHPSYGSGHAVVAGACVTILKAFFDSGIEIDQVFEVDKDEDKLVKSSFKGTLTVAGELNKLADNIAIGRNMAGVHYFSDQFESLLLGEQVAIGILEEQSLTYGENFFFNLPKFDGTTIQI"]
+ref_file = "/global/homes/m/mhaseeb/repos/mhaseeb/adept_revamp/test-data/protein-reference.fasta"
+que_file = "/global/homes/m/mhaseeb/repos/mhaseeb/adept_revamp/test-data/protein-query.fasta"
+
+rfile = open(ref_file)
+r = rfile.readlines()
+
+qfile = open(que_file)
+q = qfile.readlines()
+
+rfile.close()
+qfile.close()
+
+for rline, qline in zip(r,q):
+    if(rline[0] == '>'):
+        if (qline[0] == '>'):
+            continue
+        else:
+                print("FATAL: Mismatch in lines")
+                exit(-2)
+    else:
+        if (len(rline) <= MAX_REF_LEN and len(qline) <= MAX_QUERY_LEN):
+            ref.append(rline)
+            que.append(qline)
+
+    if (len(ref) == DATA_SIZE):
+        break
 
 # instantiate a driver object
 drv = pa.driver()
@@ -59,6 +88,8 @@ total_alignments = len(ref)
 # initialize the driver
 itime = drv.initialize(score_matrix, gaps, opts.ALG_TYPE.SW, opts.SEQ_TYPE.AA, opts.CIGAR.YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID)
 
+start_time = time.time()
+
 # print status
 print("STATUS: Launching driver", flush=True)
 
@@ -76,6 +107,8 @@ drv.dth_synch()
 
 # get results
 results = drv.get_alignments()
+
+print("--- %s seconds ---" % (time.time() - start_time))
 
 # separate out arrays 
 ts = results.top_scores()
