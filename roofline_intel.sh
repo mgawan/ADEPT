@@ -24,33 +24,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# MIT License
-#
-# Copyright (c) 2020, The Regents of the University of California,
-# through Lawrence Berkeley National Laboratory (subject to receipt of any
-# required approvals from the U.S. Dept. of Energy).  All rights reserved.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 # print usage
 function usage() {
-    echo "USAGE: test_adept.sh <adept_build>"
+    echo "USAGE: roofline_intel <adept_build>"
     echo "adept_build: Path to ADEPT build directory. default: $PWD"
     echo ""
 }
@@ -72,16 +48,19 @@ cmake .. -DADEPT_INSTR=OFF
 make clean
 make install -j 8
 
+app=$ADEPT/examples/asynch_protein/asynch_protein
+
 # test datasets
-for i in $(seq 2 2); do
+for i in $(seq 3 3); do
     printf "\nRunning dataset: $i\n\n"; 
 
-    ALN=/home/u75261/sw-benchmark/read_set_$i.fasta
-    ROOF=$ADEPT/align_roof$i.out
-    PRJ=./dna_roof_data_$i
+    REF=/home/u75261/sw-benchmark/protein/ref_set_$i.fasta
+    ALN=/home/u75261/sw-benchmark/protin/que_set_$i.fasta
+    ROOF=$ADEPT/protein/align_roof$i.out
+    PRJ=./protein_roof_data_$i
 
     # ALIGNMENTS
-    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
+    advisor --collect=roofline --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $app $REF $ALN $ROOF 2>&1;
     
     advisor --report=roofline --with-stack --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/roofline.html;
 
@@ -91,15 +70,15 @@ for i in $(seq 2 2); do
 
     advisor --report=top-down --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/top-down;
 
-    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
+    advisor --collect=hotspots --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $app $REF $ALN $ROOF 2>&1;
 
     advisor --report=hotspots --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/hotspots;
 
-    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
+    advisor --collect=map --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $app $REF $ALN $ROOF 2>&1;
 
     advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/map;
 
-    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $ADEPT/examples/simple_sw/simple_sw /home/u75261/sw-benchmark/ref_set_$i.fasta $ALN $ROOF 2>&1;
+    advisor --collect=dependencies --profile-gpu --flop --trip-counts --project-dir=$PRJ -- $app $REF $ALN $ROOF 2>&1;
 
     advisor --report=map --with-stack  --show-all-rows --display-callstack --top-down --gpu --memory-operation-type=all --data-type=int  --project-dir=$PRJ --report-output=$PRJ/dependencies;
 
