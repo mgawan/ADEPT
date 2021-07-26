@@ -16,3 +16,8 @@ add_subdirectory(multi_gpu)
 
 message(STATUS "Adding example: multi GPU Protein...")
 add_subdirectory(multigpu_protein)
+
+if (ADEPT_USE_PYTHON)
+    message(STATUS "Adding PyADEPT examples...")
+    add_subdirectory(py_examples)
+endif()
