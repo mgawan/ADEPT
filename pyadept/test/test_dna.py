@@ -43,25 +43,13 @@ import datetime
 import numpy as np
 import pandas as pd
 import pyadept as adept
-from pyadept import options as opt
+from pyadept import options as opts
 
-# --------------------------- test setup variables ----------------------------------- #
-MAX_REF_LEN    =      1200
-MAX_QUERY_LEN  =       300
-GPU_ID         =         0
-DATA_SIZE      =  math.inf
-
-MATCH          =  3
-MISMATCH       = -3
-GAP_OPEN       = -6
-GAP_EXTEND     = -1
-
-# FIXME: should these go to class config?
 
 # --------------------------- helper functions ----------------------------------------- #
 
 # parse FASTAs
-def parseFASTAs(rfile, qfile):
+def parseFASTAs(rfile, qfile, maxrlen, maxqlen):
     # empty lists for reference and query sequences
     rseqs = []
     qseqs = []
@@ -75,8 +63,6 @@ def parseFASTAs(rfile, qfile):
     q = qfile.readlines()
     qfile.close()
 
-    print('STATUS: Reading ref and query files', flush=True)
-
     for rline, qline in zip(r,q):
         if(rline[0] == '>'):
             if (qline[0] == '>'):
@@ -85,13 +71,10 @@ def parseFASTAs(rfile, qfile):
                     print("FATAL: Mismatch in lines")
                     exit(-2)
         else:
-            if (len(rline) <= MAX_REF_LEN and len(qline) <= MAX_QUERY_LEN):
+            if (len(rline) <= maxrlen and len(qline) <= maxqlen):
                 # IMPORTANT: remove all whitespaces if present
                 rseqs.append(rline.lstrip().rstrip())
                 qseqs.append(qline.lstrip().rstrip())
-
-        if (len(rseqs) == DATA_SIZE):
-            break
 
     return rseqs, qseqs
 
@@ -101,17 +84,37 @@ class PyAdeptDNATests(unittest.TestCase):
     # setup class: testing settings
     @classmethod
     def setUpClass(self):
-        pass
+        self.MAX_REF_LEN    = 1200
+        self.MAX_QUERY_LEN  = 300
+        self.GPU_ID         = 0
+
         # set up DNA scoring 
+        self.MATCH          =  3
+        self.MISMATCH       = -3
+        self.GAP_OPEN       = -6
+        self.GAP_EXTEND     = -1
+
+        self.rseqs, self.qseqs = parseFASTAs(os.path.dirname(os.path.realpath(__file__)) + '/../../test-data/dna-reference.fasta', 
+                                           os.path.dirname(os.path.realpath(__file__)) + '/../../test-data/dna-query.fasta',
+                                           self.MAX_REF_LEN, self.MAX_QUERY_LEN)
+
+        self.dfref = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/../../test-data/expected256.algn', sep='\t')
 
     # runs at the start of each test
     def setUp(self):
-        pass
+        self.algorithm = opts.ALG_TYPE.SW
+        self.sequence  = opts.SEQ_TYPE.DNA
+        self.cigar     = opts.CIGAR.YES
+        self.total_alignments = len(self.rseqs)
+
+        self.batch_size = adept.get_batch_size(self.GPU_ID, self.MAX_QUERY_LEN, self.MAX_REF_LEN, 100)
+
+        # instantiate a driver object
+        self.drv = adept.driver()
 
     # runs at the end of each test
     def tearDown(self):
-        pass
-        # config.include_internal = False
+        self.drv.cleanup()
 
     # Tear down class: finalize
     @classmethod
@@ -120,15 +123,108 @@ class PyAdeptDNATests(unittest.TestCase):
 
     # ---------------------------------------------------------------------------------- #
     # test simple DNA run 
-    def test_simple(self):
-        """simple"""
-        self.assertTrue(0, 0)
+    def test_simple_dna(self):
+        """DNA simple"""
+
+        gaps = adept.gap_scores(self.GAP_OPEN, self.GAP_EXTEND)
+        score_matrix = [self.MATCH, self.MISMATCH]
+        
+        self.drv.initialize(score_matrix, gaps, self.algorithm, self.sequence, self.cigar, self.MAX_REF_LEN, self.MAX_QUERY_LEN, self.total_alignments, int(self.batch_size), int(self.GPU_ID))
+
+        # add instrumentation
+        stime = time.time()
+
+        # launch the kernel
+        self.drv.kernel_launch(self.rseqs, self.qseqs)
+
+        # synchronize kernel
+        self.drv.kernel_synch()
+
+        # copy data from device
+        self.drv.mem_cpy_dth()
+
+        # sync d2h transfers
+        self.drv.dth_synch()
+
+        # get results
+        results = self.drv.get_alignments()
+
+        print('\nDNA simple completed')
+        print("--- Elapsed: %s seconds ---" % round((time.time() - stime), 4), flush=True)
+
+        # separate out arrays
+        ts = results.top_scores()
+        rb = results.ref_begin()
+        re = results.ref_end()
+        re -= 1
+        qb = results.query_begin()
+        qe = results.query_end()
+        qe -= 1
+
+        # create a dataframe from the output
+        df = pd.DataFrame(zip(ts, rb, re, qb, qe), columns=['alignment_scores', 'reference_begin_location', 'reference_end_location', 'query_begin_location','query_end_location'], dtype=np.int16)
+
+        # compare the dfs
+        diff = pd.concat([df,self.dfref]).drop_duplicates(keep=False)
+
+        # same results expected
+        self.assertTrue(diff.empty)
 
     # ---------------------------------------------------------------------------------- #
     # test asynchronous DNA run
-    def test_async(self):
-        """async"""
-        self.assertTrue(0, 0)
+    def test_async_dna(self):
+        """DNA async"""
+
+        gaps = adept.gap_scores(self.GAP_OPEN, self.GAP_EXTEND)
+        score_matrix = [self.MATCH, self.MISMATCH]
+        
+        self.drv.initialize(score_matrix, gaps, self.algorithm, self.sequence, self.cigar, self.MAX_REF_LEN, self.MAX_QUERY_LEN, self.total_alignments, int(self.batch_size), int(self.GPU_ID))
+        # add instrumentation
+        stime = time.time()
+
+        # launch the kernel
+        self.drv.kernel_launch(self.rseqs, self.qseqs)
+
+        work_cpu = 0
+
+        while not self.drv.kernel_done():
+            work_cpu += 1
+
+        self.drv.mem_cpy_dth()
+
+        while not self.drv.dth_done():
+            work_cpu += 1
+
+        # sync d2h transfers
+        self.drv.dth_synch()
+
+        # get results
+        results = self.drv.get_alignments()
+
+        print('\nDNA async completed')
+        print("--- Elapsed: %s seconds ---" % round((time.time() - stime), 4), flush=True)
+
+        # separate out arrays
+        ts = results.top_scores()
+        rb = results.ref_begin()
+        re = results.ref_end()
+        re -= 1
+        qb = results.query_begin()
+        qe = results.query_end()
+        qe -= 1
+
+        # create a dataframe from the output
+        df = pd.DataFrame(zip(ts, rb, re, qb, qe), columns=['alignment_scores', 'reference_begin_location', 'reference_end_location', 'query_begin_location','query_end_location'], dtype=np.int16)
+
+        # compare the dfs
+        diff = pd.concat([df,self.dfref]).drop_duplicates(keep=False)
+
+        # same results expected
+        self.assertTrue(diff.empty)
+
+        # async support not yet in ADEPT-SYCL.
+        # FIXME: update me to work_cpu > 0 
+        self.assertTrue(work_cpu == 0)
 
 # ----------------------------- main test runner -------------------------------------- #
 # main runner

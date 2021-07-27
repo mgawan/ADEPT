@@ -39,8 +39,6 @@ MAX_QUERY_LEN  =       600
 GPU_ID         =         0
 DATA_SIZE      =  math.inf
 
-MATCH          =  3
-MISMATCH       = -3
 GAP_OPEN       = -6
 GAP_EXTEND     = -1
 

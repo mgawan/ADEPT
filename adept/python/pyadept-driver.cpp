@@ -27,6 +27,18 @@
 namespace py = pybind11;
 using namespace py::literals;
 
+
+#define ALNPTR2ARRAY(array)                                                                   \
+    def(#array, [](ADEPT::aln_results &aln){                                             \
+        py::capsule free_array(aln.array, [](void *f)                                    \
+        {                                                                                \
+            short *foo = reinterpret_cast<short *>(f);                                   \
+            delete[] foo;                                                                \
+        });                                                                              \
+                                                                                         \
+        return py::array_t<short>({aln.size}, {sizeof(short)}, aln.array, free_array);   \
+    })
+
 namespace pydriver
 {
 
@@ -75,27 +87,16 @@ void structs(py::module &adp)
             return "<pyadept.gap_scores: open: " + std::to_string(a.open) + " extend: " + std::to_string(a.extend) + ">";
         });
 
-#define CONVERT(array)                                                                   \
-    def(#array, [](ADEPT::aln_results &aln){                                             \
-        py::capsule free_array(aln.array, [](void *f)                                    \
-        {                                                                                \
-            short *foo = reinterpret_cast<short *>(f);                                   \
-            delete[] foo;                                                                \
-        });                                                                              \
-                                                                                         \
-        return py::array_t<short>({aln.size}, {sizeof(short)}, aln.array, free_array);   \
-    })
-
     //
     // struct aln_results
     //
     py::class_<ADEPT::aln_results>(adp, "alignments", "Alignment results from ADEPT")
-    .CONVERT(top_scores)
-    .CONVERT(ref_begin)
-    .CONVERT(ref_end)
-    .CONVERT(query_begin)
-    .CONVERT(query_end)
-    .def_readwrite("size", &ADEPT::aln_results::size);
+    .ALNPTR2ARRAY(top_scores)
+    .ALNPTR2ARRAY(ref_begin)
+    .ALNPTR2ARRAY(ref_end)
+    .ALNPTR2ARRAY(query_begin)
+    .ALNPTR2ARRAY(query_end)
+    .def_readonly("size", &ADEPT::aln_results::size);
 
     //
     // struct all_aln
@@ -103,8 +104,8 @@ void structs(py::module &adp)
     py::class_<ADEPT::all_alns>(adp, "multiAlign", "MultiGPU alignments")
     .def(py::init<int>())
     .def_readonly("results", &ADEPT::all_alns::results)
-    .def_readwrite("per_gpu", &ADEPT::all_alns::per_gpu)
-    .def_readwrite("left_over", &ADEPT::all_alns::left_over)
+    .def_readonly("per_gpu", &ADEPT::all_alns::per_gpu)
+    .def_readonly("left_over", &ADEPT::all_alns::left_over)
     .def_readonly("gpus", &ADEPT::all_alns::gpus);
 }
 
