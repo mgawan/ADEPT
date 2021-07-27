@@ -234,7 +234,7 @@ def main():
         else:
             print('\nSTATUS: Correctness test passed')
     else:
-        print('\INFO: Correctness test skipped...')
+        print('\nINFO: Correctness test skipped...')
 
     print('\nSTATUS: Done')
 
