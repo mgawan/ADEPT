@@ -172,7 +172,7 @@ main(int argc, char* argv[])
     //
 
     // get batch size
-    size_t batch_size = (ref_sequences.size()/2) + 1;
+    size_t batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);
 
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 

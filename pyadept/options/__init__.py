@@ -1,4 +1,5 @@
 #!@PYTHON_EXECUTABLE@
+#
 # MIT License
 #
 # Copyright (c) 2021, The Regents of the University of California,
@@ -23,10 +24,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-''' @file test/__main__.py
-Run all PyADEPT unittests
-'''
-
 from __future__ import absolute_import
 
 __author__ = "Muhammad Haseeb"
@@ -37,36 +34,11 @@ __maintainer__ = "Muaaz Awan"
 __email__ = "mgawan@lbl.gov"
 __status__ = "Development"
 
-import os
-import unittest
-import pyadept as adept
-from pyadept import options as opt
+"""
+This submodule imports the ADEPT driver class
+"""
 
-# discover and run all adept unittests in the current directory
-def run_all_tests():
-    # auto discover unittests from test_*.py files into the adept test suite
-    adeptTestSuite = unittest.defaultTestLoader.discover(start_dir=os.path.dirname(os.path.abspath(__file__)), 
-                                                       pattern='test*.py')
-
-    # print the loaded tests
-    print('============= Loaded Tests =============\n\n {}\n'.format(adeptTestSuite))
-
-    # create a results object to store test results
-    result = unittest.TestResult()
-
-    # enable stdout buffer
-    result.buffer = True
-
-    # run all tests in adeptTestSuite, use result object to store results
-    print ('\n============= Tests Stdout =============\n')
-    # run the tests
-    adeptTestSuite.run(result)
-
-    # print the results
-    print ('\n============= Results =============\n')
-    print("{}\n".format(result))
-
-
-# run all tests
-if __name__ == "__main__":
-    run_all_tests()
+try:
+    from ..libs.pyadept.options import ALG_TYPE, CIGAR, SEQ_TYPE
+except Exception as e:
+    print("{}".format(e))
