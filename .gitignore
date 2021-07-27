@@ -9,6 +9,7 @@ install*/
 
 # diff files
 *.diff
+*.tsv
 
 # Docs
 *.jekyll-metadata
