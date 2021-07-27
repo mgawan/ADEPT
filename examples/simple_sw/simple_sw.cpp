@@ -101,11 +101,11 @@ int main(int argc, char* argv[]){
 	unsigned batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);// batch size per GPU
 
   ADEPT::driver sw_driver;
-  std::array<short, 2> scores = {MATCH, MISMATCH};
+  std::vector<short> scores = {MATCH, MISMATCH};
   ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
   int total_alignments = ref_sequences.size();
-  sw_driver.initialize(scores.data(), gaps, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
+  sw_driver.initialize(scores, gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
 
   std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 

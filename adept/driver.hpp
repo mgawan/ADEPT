@@ -1,14 +1,20 @@
 #include <vector>
 #include <string>
+#include <array>
 
 
 namespace ADEPT{
+
+namespace options
+{
 	enum ALG_TYPE{SW, NW};
 	enum CIGAR{NO, YES};
 	enum SEQ_TYPE{DNA, AA};
-        
+}
+
 	struct aln_results{
 		short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
+		int size;
 		void free_results();
 	};
 
@@ -23,18 +29,33 @@ namespace ADEPT{
 			open = open_;
 			extend = extend_;
 		}
+
+		void set_scores(short open_, short extend_)
+		{
+		    open = open_;
+		    extend = extend_;
+		}
+
+		std::array<short, 2> get_scores()
+		{
+		    return {open, extend};
+		}
 	};
 
 	struct all_alns{
-		aln_results* results;
+		std::vector<aln_results> results;
 		int per_gpu;
 		int left_over;
 		int gpus;
-		all_alns(int count){
-			results = new aln_results[count];
+		all_alns(int count)
+		{
+			results.reserve(count);		
+			// insert dummy aln_results here
+			for (int i = 0; i < count; i++)
+				results.push_back(aln_results());
 			per_gpu = 0;
 			left_over = 0;
-			gpus = 0;
+			gpus = count;
 		}
 	};
 
@@ -43,9 +64,9 @@ namespace ADEPT{
 		private:
 			short match_score, mismatch_score, gap_start, gap_extend;
 			int gpu_id;
-			ALG_TYPE algorithm;
-			SEQ_TYPE sequence;
-			CIGAR cigar_avail;
+			options::ALG_TYPE algorithm;
+			options::SEQ_TYPE sequence;
+			options::CIGAR cigar_avail;
 			adept_stream *curr_stream = nullptr;
 
 			unsigned max_ref_size, max_que_size;
@@ -69,7 +90,10 @@ namespace ADEPT{
 			int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
 
 		public:
-			void initialize(short scores[], gap_scores g_scores, ALG_TYPE _algorithm, SEQ_TYPE _sequence, CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id);// each adept_dna object will have a unique cuda stream
+			// default constructor
+			driver() = default;
+			void initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id = 0);// each adept_dna object will have a unique cuda stream
+
 			void kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
 			void mem_cpy_dth(int offset=0);
 			aln_results get_alignments();
@@ -78,10 +102,11 @@ namespace ADEPT{
 			void kernel_synch();
 			void dth_synch();
 			void cleanup();
+			void set_gap_scores(short _gap_open, short _gap_extend);
 	};
 
-	aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, short scores[], gap_scores gaps);
+	aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, std::vector<short> &scores, gap_scores gaps);
 
-	all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::ALG_TYPE algorithm, ADEPT::SEQ_TYPE sequence, ADEPT::CIGAR cigar_avail, int max_ref_size, int max_que_size, short scores[], gap_scores gaps, int batch_size_ = -1);
+	all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, std::vector<short> &scores, gap_scores gaps, int batch_size_ = -1);
 	size_t get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 }

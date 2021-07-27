@@ -23,3 +23,16 @@ get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 # target_link_libraries(adept_lib_shared PUBLIC OpenMP::OpenMP_CXX)
 install(TARGETS adept_lib_shared LIBRARY DESTINATION lib)
 
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+#
+# Python bindings
+#
+if (ADEPT_USE_PYTHON)
+    message(STATUS "Adding Adept/python...")
+    add_subdirectory(python)
+endif()

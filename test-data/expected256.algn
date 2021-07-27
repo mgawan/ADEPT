@@ -44,7 +44,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 141	150	220	0	70
 444	150	299	0	149
 438	150	297	0	147
-95	0	103	44	139
+95	0	103	44	135
 444	150	299	0	149
 444	150	300	0	149
 450	81	230	0	149
@@ -365,7 +365,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 224	292	469	9	149
 166	100	164	0	71
 450	21	170	0	149
-159	4	138	8	148
+159	4	138	8	147
 204	45	158	0	118
 166	26	202	25	147
 128	3	121	25	138
@@ -2287,7 +2287,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 450	150	299	0	149
 450	150	299	0	149
 450	60	209	0	149
-285	0	116	29	145
+285	0	116	15	131
 219	7	108	5	105
 300	0	112	1	112
 151	0	222	0	148
@@ -3571,7 +3571,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 145	184	301	2	125
 247	0	144	5	139
 180	0	160	8	149
-139	2	132	25	149
+139	2	125	25	149
 100	86	181	18	120
 184	28	186	5	149
 116	5	104	19	112
@@ -4868,7 +4868,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 444	150	299	0	149
 444	150	297	0	147
 441	150	298	0	148
-71	252	350	40	147
+71	252	350	40	143
 342	0	113	36	149
 450	150	299	0	149
 450	150	299	0	149
@@ -5418,7 +5418,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 282	152	299	0	149
 185	47	140	10	105
 251	255	392	10	149
-243	141	295	2	148
+243	141	295	2	147
 237	15	152	10	149
 311	152	299	0	149
 291	0	102	19	121
@@ -5498,7 +5498,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 192	284	357	76	149
 444	150	299	0	149
 345	437	578	0	146
-91	65	109	71	118
+91	65	109	64	111
 111	107	176	42	111
 82	186	221	32	71
 81	53	112	27	83
@@ -5514,7 +5514,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 79	232	283	82	127
 86	137	258	8	108
 75	237	267	87	117
-96	236	275	65	104
+96	236	275	58	97
 405	24	158	0	134
 351	0	118	16	134
 336	150	261	0	111
@@ -8530,7 +8530,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 105	0	34	115	149
 444	62	211	0	149
 210	158	271	9	122
-234	150	283	6	136
+234	150	283	6	131
 192	5	103	37	136
 150	17	119	4	111
 236	152	280	1	130
@@ -11967,7 +11967,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 121	39	95	0	62
 108	150	189	0	39
 121	1	57	87	149
-101	150	243	0	142
+101	150	243	0	85
 149	85	249	2	149
 129	150	208	0	61
 122	28	114	60	149
@@ -12290,7 +12290,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 444	150	299	0	149
 450	114	263	0	149
 444	150	299	0	149
-108	208	373	16	148
+108	208	373	16	142
 116	16	162	14	136
 438	150	299	0	149
 441	55	203	0	148
@@ -14381,7 +14381,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 197	193	340	21	132
 156	161	301	0	134
 133	127	219	22	100
-77	11	168	0	142
+77	11	168	0	126
 450	150	299	0	149
 115	131	302	2	146
 444	150	299	0	149
@@ -14902,7 +14902,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 166	204	341	13	143
 147	33	114	65	147
 141	179	278	29	141
-122	3	87	77	144
+122	3	87	77	143
 157	189	251	77	142
 161	108	296	1	148
 113	67	186	13	116
@@ -16027,7 +16027,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 131	152	212	80	143
 131	24	84	80	143
 147	241	309	10	79
-116	201	287	42	138
+116	201	287	42	137
 156	127	293	0	143
 176	165	296	11	145
 447	150	298	0	148
@@ -19338,7 +19338,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 96	0	31	118	149
 450	150	299	0	149
 450	150	299	0	149
-255	161	297	11	148
+255	161	297	11	147
 450	150	299	0	149
 297	149	298	2	148
 450	150	299	0	149
@@ -19455,7 +19455,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 91	112	210	0	128
 101	0	87	60	140
 101	154	301	1	149
-93	247	328	30	126
+93	247	328	30	125
 450	150	299	0	149
 444	150	299	0	149
 444	150	299	0	149
@@ -21316,8 +21316,8 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 450	41	190	0	149
 450	150	299	0	149
 156	77	180	1	95
-285	153	249	8	149
-314	0	124	18	136
+285	153	249	8	104
+314	0	124	13	131
 435	0	144	5	149
 165	196	310	45	143
 282	188	281	3	96
@@ -21989,7 +21989,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 81	80	106	0	26
 104	198	299	50	149
 185	190	299	38	149
-156	27	126	0	104
+156	27	117	0	104
 192	40	176	28	149
 171	2	110	39	149
 150	78	176	51	149
@@ -22558,7 +22558,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 142	150	228	0	79
 141	223	289	4	71
 83	0	35	26	64
-156	0	110	6	146
+156	0	110	6	145
 121	229	332	6	118
 147	25	105	64	145
 133	227	295	77	145
@@ -22987,7 +22987,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 320	234	374	0	142
 252	195	299	45	149
 254	46	186	0	143
-263	152	261	0	112
+263	152	261	0	111
 184	100	193	1	103
 150	184	266	34	125
 215	163	283	17	149
@@ -23346,7 +23346,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 294	150	299	0	149
 444	150	297	0	147
 254	181	292	40	142
-84	56	108	86	147
+84	56	108	86	143
 81	88	193	18	122
 444	150	299	0	149
 140	12	107	38	142
@@ -23633,7 +23633,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 204	33	159	0	129
 178	39	111	0	69
 190	126	299	17	149
-179	79	216	6	148
+179	79	216	6	147
 195	94	299	0	149
 197	150	306	0	141
 191	13	96	64	149
@@ -23642,7 +23642,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 150	66	131	2	67
 172	144	288	9	138
 203	150	299	0	142
-164	120	295	3	148
+164	120	295	3	147
 168	150	205	0	55
 252	0	83	66	149
 444	88	238	0	149
@@ -25769,7 +25769,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 192	0	83	55	138
 216	6	93	33	120
 146	13	99	4	82
-219	146	286	11	149
+219	146	286	11	131
 247	146	305	4	149
 188	29	132	11	99
 240	1	161	11	147
@@ -26690,7 +26690,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 175	31	144	0	131
 160	149	231	0	74
 131	212	286	44	136
-126	22	80	90	147
+126	22	79	90	147
 172	15	141	9	149
 157	97	300	5	149
 154	46	117	0	80
@@ -27967,7 +27967,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 133	4	124	33	145
 154	36	159	20	143
 120	0	46	39	85
-134	31	98	64	129
+134	31	97	64	129
 158	188	304	26	145
 156	1	91	67	149
 69	149	183	37	90
@@ -28267,7 +28267,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 235	145	288	0	143
 225	15	133	32	149
 191	0	100	41	142
-199	0	133	12	145
+199	0	127	12	145
 180	0	97	43	142
 113	19	77	32	92
 221	237	362	21	147
@@ -29549,7 +29549,7 @@ alignment_scores	reference_begin_location	reference_end_location	query_begin_loc
 195	0	117	1	118
 205	0	125	18	143
 207	9	118	2	111
-165	45	118	2	74
+165	45	117	2	74
 267	83	230	0	147
 180	8	87	68	147
 225	152	300	2	149

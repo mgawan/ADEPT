@@ -21,6 +21,16 @@ option(BUILD_TESTS "Building Tests" ON)
 #       Add subdirectories
 ##########################################################################################
 
+# Add pyAdept
+option(ADEPT_USE_PYTHON "Adding PyAdept" OFF)
+
+if (ADEPT_USE_PYTHON)
+    message(STATUS "Adding PyAdept support...")
+    add_subdirectory(pyadept)
+    message(STATUS "Adding external...")
+    add_subdirectory(external)
+endif()
+
 include_directories("adept")
 
 message(STATUS "Adding Adept library")
