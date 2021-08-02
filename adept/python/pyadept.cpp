@@ -32,9 +32,9 @@
 namespace py = pybind11;
 using namespace py::literals;
 
-PYBIND11_MODULE(pyadept, adp) 
+PYBIND11_MODULE(adept, adp) 
 {
-    adp.doc() = "Python Driver for ADEPT SYCL";
+    adp.doc() = "Python interface for GPU-Inpendent ADEPT SYCL";
 
     // bind enums
     pydriver::options(adp);

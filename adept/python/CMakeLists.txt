@@ -15,13 +15,23 @@ file(GLOB SOURCE_FILES *.cpp)
 set(HEADER_FILES *.hpp)
 
 # add a pybind11 module
-pybind11_add_module(pyadept SHARED ${SOURCE_FILES})
+pybind11_add_module(adept MODULE ${SOURCE_FILES})
+
+set_target_properties(adept PROPERTIES
+    PREFIX                      ""
+    SUFFIX                      "${PYTHON_MODULE_EXTENSION}"
+    LIBRARY_OUTPUT_DIRECTORY    ${CMAKE_BINARY_DIR}/${PROJECT_NAME}
+    ARCHIVE_OUTPUT_DIRECTORY    ${CMAKE_BINARY_DIR}/${PROJECT_NAME}
+    RUNTIME_OUTPUT_DIRECTORY    ${CMAKE_BINARY_DIR}/${PROJECT_NAME}
+    PDB_OUTPUT_DIRECTORY        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}
+    INSTALL_RPATH_USE_LINK_PATH ON
+    ${EXTRA_PROPERTIES})
 
 # set include directories
-target_include_directories(pyadept PUBLIC ${PYBIND11_INCLUDE_DIR} ${ADEPT_HEADERS})
+target_include_directories(adept PUBLIC ${PYBIND11_INCLUDE_DIR} ${ADEPT_HEADERS})
 
 # link ADEPT library
-target_link_libraries(pyadept PRIVATE adept_lib_shared)
+target_link_libraries(adept PRIVATE adept_lib_shared)
 
 # install the python lib
-install(TARGETS pyadept LIBRARY DESTINATION lib)
+install(TARGETS adept LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME})
