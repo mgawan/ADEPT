@@ -24,6 +24,10 @@
 # SOFTWARE.
 #
 
+''' @file test/test_dna.py
+Test PyADEPT on DNA sequences
+'''
+
 from __future__ import absolute_import
 
 __author__ = "Muhammad Haseeb"

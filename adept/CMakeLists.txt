@@ -24,9 +24,9 @@ set_property(TARGET adept_obj adept_lib_shared PROPERTY CUDA_ARCHITECTURES 50 60
 set_property(TARGET adept_obj adept_lib_shared PROPERTY INTERFACE_COMPILE_OPTIONS)
 
 get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
-install(TARGETS adept_lib_shared LIBRARY DESTINATION lib)
+install(TARGETS adept_lib_shared LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
 # add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH

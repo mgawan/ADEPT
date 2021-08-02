@@ -1,5 +1,4 @@
-#!@PYTHON_EXECUTABLE@
-#
+#!/usr/common/software/python/3.8-anaconda-2020.11/bin/python3.8
 # MIT License
 #
 # Copyright (c) 2021, The Regents of the University of California,
@@ -23,22 +22,32 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
 
 from __future__ import absolute_import
 
+import sys
+
 __author__ = "Muhammad Haseeb"
 __copyright__ = "Copyright 2021, The Regents of the University of California"
-__credits__ = ["Muhammad Haseeb"]
+__credits__ = "Muhammad Haseeb"
 __license__ = "MIT"
 __maintainer__ = "Muaaz Awan"
 __email__ = "mgawan@lbl.gov"
 __status__ = "Development"
 
 """
-This submodule imports the ADEPT driver class
+This submodule imports the PyADEPT driver options.
+
+    from pyadept import options
+    driver = pyadept.driver()
+    algorithm = options.ALG_TYPE.<NW|SW>
+    sequence = options.SEQ_TYEP.<DNA|AA>
+    cigar = options.CIGAR.<YES|NO>
+    driver.initialize(.., algorithm, sequence, cigar, ...)
 """
 
 try:
-    from ..libs.pyadept.options import ALG_TYPE, CIGAR, SEQ_TYPE
+    from ..adept.options import *
 except Exception as e:
     print("{}".format(e))
