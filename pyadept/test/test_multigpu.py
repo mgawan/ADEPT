@@ -24,6 +24,10 @@
 # SOFTWARE.
 #
 
+''' @file test/test_multigpu.py
+Test PyADEPT on multiple GPUs (if available) in batch mode
+'''
+
 from __future__ import absolute_import
 
 __author__ = "Muhammad Haseeb"

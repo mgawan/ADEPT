@@ -49,8 +49,27 @@ if(BUILD_TESTS)
     message(STATUS "Adding ADEPT tests")
     include(CTest)
 
-    add_test(simple_sw ./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
-    add_test(asynch_dna ./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
-    add_test(asynch_prot ./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta ./simple_test_out ../test-data/protein_expected256.algn)
-    add_test(multi_gpu ./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+    # ADEPT tests
+
+    add_test(simple_dna ./examples/simple_sw/simple_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+
+    add_test(async_dna ./examples/asynch_sw/asynch_sw ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+    add_test(async_protein ./examples/asynch_protein/asynch_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta ./simple_test_out ../test-data/protein_expected256.algn)
+
+    add_test(multiGPU_dna ./examples/multi_gpu/multi_gpu ../test-data/dna-reference.fasta ../test-data/dna-query.fasta ./simple_test_out ../test-data/expected256.algn)
+
+    add_test(multiGPU_aa ./examples/multigpu_protein/multigpu_protein ../test-data/protein-reference.fasta ../test-data/protein-query.fasta ./simple_test_out ../test-data/protein_expected256.algn)
+
+    # PyADEPT testing
+
+    add_test(py_simple_dna python ./examples/py_examples/py_simple_sw -r ../test-data/dna-reference.fasta -q ../test-data/dna-query.fasta -t ../test-data/expected256.algn)
+
+    add_test(py_async_dna python ./examples/py_examples/py_asynch_sw -r ../test-data/dna-reference.fasta -q ../test-data/dna-query.fasta -t ../test-data/expected256.algn)
+
+    add_test(py_multiGPU_dna python ./examples/py_examples/py_multigpu_dna -r ../test-data/dna-reference.fasta -q ../test-data/dna-query.fasta -t ../test-data/expected256.algn)
+
+    add_test(py_async_protein python ./examples/py_examples/py_asynch_protein -r ../test-data/protein-reference.fasta -q ../test-data/protein-query.fasta -t ../test-data/protein_expected256.algn)
+
+    add_test(py_multiGPU_aa python ./examples/py_examples/py_multigpu_protein -r ../test-data/protein-reference.fasta -q ../test-data/protein-query.fasta -t ../test-data/protein_expected256.algn)
+
 endif()

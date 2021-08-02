@@ -24,6 +24,10 @@
 # SOFTWARE.
 #
 
+''' @file test/test_protein.py
+Test PyADEPT on Amino Acid (Protein) sequences
+'''
+
 from __future__ import absolute_import
 
 __author__ = "Muhammad Haseeb"
@@ -272,9 +276,8 @@ class PyAdeptAATests(unittest.TestCase):
         # same results expected
         self.assertTrue(diff.empty)
 
-        # async support not yet in ADEPT-SYCL.
-        # FIXME: update me to work_cpu > 0 
-        self.assertTrue(work_cpu == 0)
+        # check if any work done in async
+        self.assertTrue(work_cpu > 0)
 
 # ----------------------------- main test runner -------------------------------------- #
 # main runner
