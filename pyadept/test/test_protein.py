@@ -24,6 +24,10 @@
 # SOFTWARE.
 #
 
+''' @file test/test_protein.py
+Test PyADEPT on Amino Acid (Protein) sequences
+'''
+
 from __future__ import absolute_import
 
 __author__ = "Muhammad Haseeb"
