@@ -34,8 +34,8 @@ module load cuda/10.1.243
 
 ## Build & Install
 - Navigate to: `cd $ADEPT_DIR; mkdir build ; cd build`.
-- Use CMake to generate the Makefiles using the following command: `CXX=<path to: dpcpp|clang++> cmake $ADEPT_DIR -DADEPT_GPU=<NVIDIA|INTEL> (default: NVIDIA) -DADEPT_INSTR=<ON|OFF> (default:ON) -DADEPT_USE_PYTHON=<ON|OFF> (default:OFF) -DBUILD_EXAMPLES=<ON|OFF> (default: ON) -DCMAKE_INSTALL_PREFIX=$ADEPT_DIR/install [OTHER CMAKE OPTIONS]`    
-- Make (and) install the ADEPT by running the following command: `make install -j`   
+- Use CMake to generate the Makefiles using the following command: `cmake $ADEPT_DIR -DCMAKE_CXX_COMPILER=<path to: dpcpp|clang++> -DADEPT_GPU=<NVIDIA|INTEL> (default: NVIDIA) -DADEPT_INSTR=<ON|OFF> (default:ON) -DADEPT_USE_PYTHON=<ON|OFF> (default:OFF) -DBUILD_EXAMPLES=<ON|OFF> (default: ON) -DCMAKE_INSTALL_PREFIX=$ADEPT_DIR/install [OTHER CMAKE OPTIONS]`    
+- Make (and) install the ADEPT by running the following command: `make install -j`     
 
 
 ## Examples
