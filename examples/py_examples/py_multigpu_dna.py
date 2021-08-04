@@ -55,8 +55,8 @@ def banner():
 
 def parseFASTAs(rfile, qfile):
     # empty lists for reference and query sequences
-    rseqs = []
-    qseqs = []
+    rseqs = adept.StringList()
+    qseqs = adept.StringList()
 
     # parse FASTA files together
     rfile = open(rfile)
@@ -153,7 +153,7 @@ def main():
     rseqs, qseqs = parseFASTAs(rfile, qfile)
 
     # blosum 62 scoring matrix for AA kernels
-    score_matrix = [MATCH, MISMATCH]
+    score_matrix = adept.ShortList([MATCH, MISMATCH])
 
     # gap scores
     gaps = adept.gap_scores(GAP_OPEN, GAP_EXTEND)

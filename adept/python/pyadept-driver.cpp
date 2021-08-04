@@ -116,7 +116,7 @@ void driver(py::module &adp)
 {
     py::class_<ADEPT::driver>(adp, "driver", "The ADEPT alignment driver")
     .def(py::init<>())
-    .def("initialize", static_cast<double (ADEPT::driver::*)(std::vector<short> &, ADEPT::gap_scores, ADEPT::options::ALG_TYPE, ADEPT::options::SEQ_TYPE, ADEPT::options::CIGAR, int, int, int, int, int)>(&ADEPT::driver::initialize), "Initialize the ADEPT driver")
+    .def("initialize", static_cast<double (ADEPT::driver::*)(ShortList &, ADEPT::gap_scores, ADEPT::options::ALG_TYPE, ADEPT::options::SEQ_TYPE, ADEPT::options::CIGAR, int, int, int, int, int)>(&ADEPT::driver::initialize), "Initialize the ADEPT driver")
     .def("kernel_launch", &ADEPT::driver::kernel_launch, "Launch the asynchronous alignment kernel", py::arg("ref_seqs"), py::arg("query_seqs"), py::arg("res_offset") = 0)
     .def("get_alignments", &ADEPT::driver::get_alignments, "Get ADEPT alignment results")
     .def("mem_cpy_dth", &ADEPT::driver::mem_cpy_dth, "Asynchronously copy the alignment results from device to host", py::arg("offset") = 0)

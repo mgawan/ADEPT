@@ -25,6 +25,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "pybind11/pybind11.h"
 #include "pybind11/cast.h"
 #include "pybind11/embed.h"
@@ -37,3 +40,16 @@
 
 namespace py = pybind11;
 using namespace py::literals;
+
+
+// make opaque types to allow passing data by reference
+
+PYBIND11_MAKE_OPAQUE(std::vector<std::string>);
+PYBIND11_MAKE_OPAQUE(std::vector<short>);
+PYBIND11_MAKE_OPAQUE(std::vector<int>);
+
+using ShortList = std::vector<short>;
+using IntList = std::vector<int>;
+using StringList = std::vector<std::string>;
+
+void opaques(py::module &adp);
