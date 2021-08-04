@@ -54,7 +54,8 @@ module load cuda/10.1.243
 
 
 ## Testing
-- Navigate to: `cd $ADEPT_DIR/build`     
+- Navigate to: `cd $ADEPT_DIR/build`  
+- If built with `ADEPT_USE_PYTHON=ON`, add PyADEPT to PYTHONPATH: `export PYTHONPATH=$ADEPT_DIR/build:$PYTHONPATH`   
 - Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 ctest`
 - DevCloud: `ctest`
 
@@ -89,11 +90,10 @@ Total Test time (real) =  12.73 sec
 
 ```
 
-
 ### PyADEPT Unittests
 
 - Build ADEPT with Python: `cd $ADEPT_DIR/build; cmake .. -DADEPT_USE_PYTHON=ON ; make install -j`
-- Add PyADEPT to PYTHONPATH: `export PYTHONPATH=$PWD/build:$PYTHONPATH`    
+- Add PyADEPT to PYTHONPATH: `export PYTHONPATH=$ADEPT_DIR/build:$PYTHONPATH`    
 - Navigate to: `cd $ADEPT_DIR/pyadept`    
 - Cori: `srun --partition=gpu -C gpu -G 1 -t 00:10:00 python -m unittest -v`    
 - DevCloud: `python -m unittest -v`     
