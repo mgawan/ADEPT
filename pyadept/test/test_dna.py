@@ -55,8 +55,8 @@ from pyadept import options as opts
 # parse FASTAs
 def parseFASTAs(rfile, qfile, maxrlen, maxqlen):
     # empty lists for reference and query sequences
-    rseqs = []
-    qseqs = []
+    rseqs = adept.StringList()
+    qseqs = adept.StringList()
 
     # parse FASTA files together
     rfile = open(rfile)
@@ -131,7 +131,7 @@ class PyAdeptDNATests(unittest.TestCase):
         """DNA simple"""
 
         gaps = adept.gap_scores(self.GAP_OPEN, self.GAP_EXTEND)
-        score_matrix = [self.MATCH, self.MISMATCH]
+        score_matrix = adept.ShortList([self.MATCH, self.MISMATCH])
         
         self.drv.initialize(score_matrix, gaps, self.algorithm, self.sequence, self.cigar, self.MAX_REF_LEN, self.MAX_QUERY_LEN, self.total_alignments, int(self.batch_size), int(self.GPU_ID))
 
@@ -180,7 +180,7 @@ class PyAdeptDNATests(unittest.TestCase):
         """DNA async"""
 
         gaps = adept.gap_scores(self.GAP_OPEN, self.GAP_EXTEND)
-        score_matrix = [self.MATCH, self.MISMATCH]
+        score_matrix = adept.ShortList([self.MATCH, self.MISMATCH])
         
         self.drv.initialize(score_matrix, gaps, self.algorithm, self.sequence, self.cigar, self.MAX_REF_LEN, self.MAX_QUERY_LEN, self.total_alignments, int(self.batch_size), int(self.GPU_ID))
         # add instrumentation

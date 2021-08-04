@@ -28,13 +28,20 @@
 
 #include "pyadept.hpp"
 #include "pyadept-driver.hpp"
+#include "pybind11/stl_bind.h"
 
 namespace py = pybind11;
 using namespace py::literals;
 
+//
+// adept module
+//
 PYBIND11_MODULE(adept, adp) 
 {
     adp.doc() = "Python interface for CUDA-based ADEPT";
+
+    // bind opaque types before anything else
+    opaques(adp);
 
     // bind enums
     pydriver::options(adp);
@@ -48,4 +55,19 @@ PYBIND11_MODULE(adept, adp)
     // bind functions
     pydriver::functions(adp);
 
+}
+
+//
+// bind STL opaques before anything else
+//
+void opaques(py::module &adp)
+{
+    // bind vector<int>
+    py::bind_vector<IntList>(adp, "IntList", py::module_local(false));
+
+    // bind vector<short>
+    py::bind_vector<ShortList>(adp, "ShortList", py::module_local(false));
+
+    // bind vector<string>
+    py::bind_vector<StringList>(adp, "StringList", py::module_local(false));
 }

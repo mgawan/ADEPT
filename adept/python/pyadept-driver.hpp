@@ -25,21 +25,10 @@
 
 #pragma once
 
-#include "pybind11/pybind11.h"
-#include "pybind11/cast.h"
-#include "pybind11/embed.h"
-#include "pybind11/eval.h"
-#include "pybind11/functional.h"
-#include "pybind11/iostream.h"
-#include "pybind11/numpy.h"
-#include "pybind11/pytypes.h"
-#include "pybind11/stl.h"
+#include "pyadept.hpp"
 
 // ADEPT driver
 #include <driver.hpp>
-
-namespace py = pybind11;
-using namespace py::literals;
 
 namespace pydriver
 {
