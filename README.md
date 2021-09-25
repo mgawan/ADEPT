@@ -4,7 +4,7 @@
 ADEPT is a GPU accelerated sequence alignment library for short DNA reads and protein sequences. It provides API calls for asychronously performing sequence alignments on GPUs while keeping track of progress on GPUs so that work can be performed on CPUs. Different capabilities of ADEPT API are explored using examples in the `examples` folder.
 
 ## Dependencies
-ADEPT can built using CUDA 9.0 or later and a version of GCC compatible with the CUDA version that is used. 
+ADEPT can be built using CUDA 9.0 or later and a version of GCC compatible with the CUDA version that is used. 
 
 ## Examples
 To build the examples cd into the directory containing the <example>.cpp file and use below instructions to build and run:
