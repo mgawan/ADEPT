@@ -12,6 +12,7 @@ To build ADEPT library along with the C++ and Python examples, first move into t
 ```bash
 mkdir build
 cd build
+export PYTHONPATH=$PWD:$PYTHONPATH
 cmake -DADEPT_USE_PYTHON=ON ../
 make
 ```
@@ -21,6 +22,7 @@ To run the installed examples (examples are also used as test):
 make test
 ```
 If you do not need python module of ADEPT, simply use:
+
 ```bash
 mkdir build
 cd build
