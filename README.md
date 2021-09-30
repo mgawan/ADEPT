@@ -102,7 +102,7 @@ Total Test time (real) =  12.73 sec
 ## Roofline Analysis
 
 ### NERSC Cori (NVIDIA V100)
-- Please follow the instructions and steps documented [here](https://github.com/mhaseeb123/Instruction_roofline_scripts/tree/python#instruction-roofline-for-adept) to obtain the roofline.
+- Please follow the instructions and steps documented [here](https://github.com/mhaseeb123/Instruction_roofline_scripts/#instruction-roofline-for-adept) to obtain the instruction roofline. Note that the conventional roofline (FLOP/byte) is not applicable to ADEPT as it performs all `integer` operations.
 
 ### Intel DevCloud (Intel UHD Graphics P630)
 - Navigate to `cd $ADEPT_DIR/build`
