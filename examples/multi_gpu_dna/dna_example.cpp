@@ -8,6 +8,13 @@
 #include <thread>
 #include <functional>
 
+constexpr int MAX_REF_LEN    =      1200;
+constexpr int MAX_QUERY_LEN  =       300;
+
+constexpr short MATCH          =  3;
+constexpr short MISMATCH       = -3;
+constexpr short GAP_OPEN       = -6;
+constexpr short GAP_EXTEND     = -1;
 using namespace std;
 
 int main(int argc, char* argv[]){
@@ -56,13 +63,15 @@ int main(int argc, char* argv[]){
   }
 
 
-	auto batch_size = ADEPT::get_batch_size(0, 300, 1200, 100);// batch size per GPU
+auto batch_size = ADEPT::get_batch_size(0, 300, 1200, 100);// batch size per GPU
 
-  std::array<short, 4> scores = {3,-3,-6,-1};
+// std::array<short, 4> scores = {3,-3,-6,-1};
+std::vector<short> scores = {MATCH, MISMATCH};
+ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
   int gpus_to_use = 1;
- auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::DNA, ADEPT::CIGAR::YES, 1200, 300, scores.data(), gpus_to_use, -6, -1, batch_size);
- 
+//  auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, 1200, 300, scores.data(), gpus_to_use, -6, -1, batch_size);
+ auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores, gaps, batch_size);
  ofstream results_file(out_file);
  int tot_gpus = all_results.gpus;
  for(int gpus = 0; gpus < tot_gpus; gpus++){
