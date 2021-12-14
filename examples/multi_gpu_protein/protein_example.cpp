@@ -8,6 +8,18 @@
 #include <thread>
 #include <functional>
 
+constexpr int MAX_REF_LEN    =      1200;
+constexpr int MAX_QUERY_LEN  =       600;
+constexpr int GPU_ID         =         0;
+
+constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();
+
+// scores
+constexpr short MATCH          =  3;
+constexpr short MISMATCH       = -3;
+constexpr short GAP_OPEN       = -6;
+constexpr short GAP_EXTEND     = -1;
+
 using namespace std;
 
 int main(int argc, char* argv[]){
@@ -56,11 +68,11 @@ int main(int argc, char* argv[]){
   }
 
 
-	auto batch_size = ADEPT::get_batch_size(0, 800, 1200, 100);// batch size per GPU
+	// auto batch_size = ADEPT::get_batch_size(0, 800, 1200, 100);// batch size per GPU
 
-  std::array<short, 4> scores = {3,-3,-6,-1};
+  // std::array<short, 4> scores = {3,-3,-6,-1};
 
-  std::array<short, 576> scores_matrix = {4 ,-1 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,0 ,-3 ,-2 ,0 ,-2 ,-1 ,0 ,-4 , -1 ,5 ,0 ,-2 ,-3 ,1 ,0 ,-2 ,0 ,-3 ,-2 ,2 ,-1 ,-3 ,-2 ,-1 ,-1 ,-3 ,-2 ,-3 ,-1 ,0 ,-1 ,-4 ,
+  std::vector<short>  scores_matrix = {4 ,-1 ,-2 ,-2 ,0 ,-1 ,-1 ,0 ,-2 ,-1 ,-1 ,-1 ,-1 ,-2 ,-1 ,1 ,0 ,-3 ,-2 ,0 ,-2 ,-1 ,0 ,-4 , -1 ,5 ,0 ,-2 ,-3 ,1 ,0 ,-2 ,0 ,-3 ,-2 ,2 ,-1 ,-3 ,-2 ,-1 ,-1 ,-3 ,-2 ,-3 ,-1 ,0 ,-1 ,-4 ,
     -2 ,0 ,6 ,1 ,-3 ,0 ,0 ,0 ,1 ,-3 ,-3 ,0 ,-2 ,-3 ,-2 ,1 ,0 ,-4 ,-2 ,-3 ,3 ,0 ,-1 ,-4 ,
     -2 ,-2 ,1 ,6 ,-3 ,0 ,2 ,-1 ,-1 ,-3 ,-4 ,-1 ,-3 ,-3 ,-1 ,0 ,-1 ,-4 ,-3 ,-3 ,4 ,1 ,-1 ,-4 ,
     0 ,-3 ,-3 ,-3 ,9 ,-3 ,-4 ,-3 ,-3 ,-1 ,-1 ,-3 ,-1 ,-2 ,-3 ,-1 ,-1 ,-2 ,-2 ,-1 ,-3 ,-3 ,-2 ,-4 ,
@@ -86,8 +98,19 @@ int main(int argc, char* argv[]){
 
   //sw_driver.set_gap_scores(-6, -1); // for protein alignment gap scores need to be set separately
   int gpus_to_use = 1;
- auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, 1200, 800, scores_matrix.data(), gpus_to_use, -6, -1, batch_size);
+//  auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::ALG_TYPE::SW, ADEPT::SEQ_TYPE::AA, ADEPT::CIGAR::YES, 1200, 800, scores_matrix.data(), gpus_to_use, -6, -1, batch_size);
  
+     unsigned batch_size = ADEPT::get_batch_size(GPU_ID, MAX_QUERY_LEN, MAX_REF_LEN, 100);// batch size per GPU
+
+
+    ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
+
+    std::cout << "STATUS: Launching driver" << std::endl << std::endl;
+
+    // run on multi GPU
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix, gaps, batch_size);
+
+
  ofstream results_file(out_file);
  int tot_gpus = all_results.gpus;
  for(int gpus = 0; gpus < tot_gpus; gpus++){
