@@ -312,9 +312,9 @@ ADEPT::aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::
 
 	std::vector<std::vector<std::string>> its_ref_vecs;
 	std::vector<std::vector<std::string>> its_que_vecs;
-	int my_cpu_id = dev_id;//omp_get_thread_num();
+	// int my_cpu_id = dev_id;//omp_get_thread_num();
 
-	std::cout <<"total alignments:"<<alns_this_gpu<<" thread:"<<my_cpu_id<<std::endl;
+	//std::cout <<"total alignments:"<<alns_this_gpu<<" thread:"<<my_cpu_id<<std::endl;
 	for(int i = 0; i < iterations ; i++){
 		std::vector<std::string>::const_iterator start_, end_;
 		start_ = ref_vec.begin() + i * batch_size;
@@ -346,7 +346,7 @@ ADEPT::aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::
 	for(int i = 0; i < iterations; i++){
 		// print progress every 5%
 		if (i % iter_20 == 0 || i == iterations - 1)
-			std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
+			//std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
 		
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
@@ -367,16 +367,16 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<s
 	unsigned batch_size = batch_size_;
 	
 	//total_alignments = alns_per_batch;
-	std::cout << "Batch Size:"<< batch_size<<std::endl;
-	std::cout << "Total Alignments:"<< total_alignments<<std::endl;
-    std::cout << "Total devices:"<< num_gpus<<std::endl;
+	// std::cout << "Batch Size:"<< batch_size<<std::endl;
+	// std::cout << "Total Alignments:"<< total_alignments<<std::endl;
+    // std::cout << "Total devices:"<< num_gpus<<std::endl;
 
 	std::vector<std::vector<std::string>> ref_batch_gpu;
 	std::vector<std::vector<std::string>> que_batch_gpu;
 	int alns_per_gpu = total_alignments/num_gpus;
 	int left_over = total_alignments%num_gpus;
 
-	std::cout<< "Alns per GPU:"<<alns_per_gpu<<std::endl;
+	// std::cout<< "Alns per GPU:"<<alns_per_gpu<<std::endl;
    // std::array<short, 4> scores = {3,-3,-6,-1};
 
 	for(int i = 0; i < num_gpus ; i++){
@@ -396,7 +396,7 @@ all_alns ADEPT::multi_gpu(std::vector<std::string> &ref_sequences, std::vector<s
 
 		ref_batch_gpu.push_back(std::move(temp_ref));
 		que_batch_gpu.push_back(std::move(temp_que));
-		std::cout<<"gpu:"<<i<<" has alns:"<<temp_ref.size()<<std::endl;
+		// std::cout<<"gpu:"<<i<<" has alns:"<<temp_ref.size()<<std::endl;
 	}
 
   all_alns global_results(num_gpus);
