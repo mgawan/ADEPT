@@ -1,10 +1,9 @@
+
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(simple_sw LANGUAGES CXX CUDA)
-set(CMAKE_CXX_STANDARD 11)
+project(asynch_sw LANGUAGES CXX)
+find_package(hip)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# add_subdirectory(adept)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../adept ${CMAKE_CURRENT_BINARY_DIR}/adept)
-include_directories("../../adept")
 
 add_executable(simple_sw simple_sw.cpp)
-target_link_libraries(simple_sw adept_lib_shared)
+target_link_libraries(simple_sw adept_lib_shared hip::device)
