@@ -345,7 +345,7 @@ ADEPT::aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::
 
 	for(int i = 0; i < iterations; i++){
 		// print progress every 5%
-		if (i % iter_20 == 0 || i == iterations - 1)
+		//if (i % iter_20 == 0 || i == iterations - 1)
 			//std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
 		
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
