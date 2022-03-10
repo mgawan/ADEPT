@@ -112,7 +112,7 @@ void driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::
 	total_length_ref = offset_ref[batch_size - 1];
 
 	running_sum = 0;
-	for(int i = 0; i < query_seqs.size(); i++){
+	for(int i = 0; i < batch_size; i++){
 		running_sum +=query_seqs[i].size();
 		offset_que[i] = running_sum; 
 	}
@@ -341,7 +341,7 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
 
 	for(int i = 0; i < iterations; i++){
 		// print progress every 5%
-		if (i % iter_20 == 0 || i == iterations - 1)
+		//if (i % iter_20 == 0 || i == iterations - 1)
 			//std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
 		
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
