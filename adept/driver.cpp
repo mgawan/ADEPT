@@ -122,7 +122,7 @@ void driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::
 	unsigned offsetSumA = 0;
 	unsigned offsetSumB = 0;
 
- 	for(int i = 0; i < ref_seqs.size(); i++){
+ 	for(int i = 0; i < batch_size; i++){
 		char* seqptrA = ref_cstr + offsetSumA;  
 		memcpy(seqptrA, ref_seqs[i].c_str(), ref_seqs[i].size());
 		char* seqptrB = que_cstr + offsetSumB;
