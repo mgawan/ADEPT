@@ -250,7 +250,7 @@ driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::strin
     total_length_ref = offset_ref[batch_size - 1];
     running_sum = 0;
 
-    for(int i = 0; i < query_seqs.size(); i++)
+    for(int i = 0; i < batch_size; i++)
     {
         running_sum += query_seqs[i].size();
         offset_que[i] = running_sum; 
