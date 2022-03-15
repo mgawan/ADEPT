@@ -34,18 +34,21 @@ int main(int argc, char* argv[]){
   std::cout << "       MULTI GPU       " << std::endl;
   std::cout << "-----------------------" << std::endl;
   std::cout <<                               std::endl;
-
+  bool verify = true;
   // check command line arguments
   if (argc < 5)
   {
       cout << "USAGE: asynch_sw <reference_file> <query_file> <output_file> <res_file>" << endl;
-      exit(-1);
+      cout << "result file not provided, skipping the correctness check" << endl;
+      verify = false;
   }
 
   string refFile = argv[1];
   string queFile = argv[2];
   string out_file = argv[3];
-  string res_file = argv[4];
+  string res_file;
+  
+  if(verify == true) res_file = argv[4];
 
     vector<string> ref_sequences, que_sequences;
     string   lineR, lineQ;
@@ -142,13 +145,16 @@ int main(int argc, char* argv[]){
 
 
     int return_state = 0;
-    if(!verify_correctness(res_file, out_file)) return_state = -1;
+
+    if(verify == true){
+    	if(!verify_correctness(res_file, out_file)) return_state = -1;
     
-    if(return_state == 0){
-        cout<< "correctness test passed"<<endl;
-    }else{
-        cout<< "correctness test failed"<<endl;
-    }
+   	 if(return_state == 0){
+        	cout<< "correctness test passed"<<endl;
+    	}else{
+        	cout<< "correctness test failed"<<endl;
+        }	
+     }
 
     return return_state;
 }
