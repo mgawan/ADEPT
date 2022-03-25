@@ -179,8 +179,9 @@ main(int argc, char* argv[])
 
     std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
-    // run on multi GPU
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, ADEPT::options::SCORING::ALNS_AND_SCORE, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix, gaps, batch_size);
+    auto kernel_sel = ADEPT::options::SCORING::SCORE_ONLY; // this option only computes and copies back scores.
+    // run on multi GPU for scores only, this will not copy or compute the alignment information
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, kernel_sel, MAX_REF_LEN, MAX_QUERY_LEN, scores_matrix, gaps, batch_size);
 
     // ------------------------------------------------------------------------------------ //
 
@@ -193,8 +194,7 @@ main(int argc, char* argv[])
     std::cout << std::endl << "STATUS: Writing results..." << std::endl;
 
     // write the results header
-    results_file << "alignment_scores\t"     << "reference_begin_location\t" << "reference_end_location\t" 
-                 << "query_begin_location\t" << "query_end_location"         << endl;
+    results_file << "alignment_scores"<< endl;
 
     for(int gpus = 0; gpus < tot_gpus; gpus++)
     {
@@ -205,7 +205,7 @@ main(int argc, char* argv[])
 
         for(int k = 0; k < this_count; k++)
         {
-            results_file << all_results.results[gpus].top_scores[k] << "\t" << all_results.results[gpus].ref_begin[k] << "\t" << all_results.results[gpus].ref_end[k] - 1 << "\t"<< all_results.results[gpus].query_begin[k] << "\t" << all_results.results[gpus].query_end[k] - 1 << endl;
+            results_file << all_results.results[gpus].top_scores[k] << endl;
         }
     }
 
@@ -214,7 +214,7 @@ main(int argc, char* argv[])
 
     // cleanup all_results
     for(int i = 0; i < tot_gpus; i++)
-        all_results.results[i].free_results(ADEPT::options::SCORING::ALNS_AND_SCORE);
+        all_results.results[i].free_results(kernel_sel);
 
     int status = 0;
 

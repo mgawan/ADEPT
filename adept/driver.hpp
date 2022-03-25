@@ -10,12 +10,13 @@ namespace options
 	enum ALG_TYPE{SW, NW};
 	enum CIGAR{NO, YES};
 	enum SEQ_TYPE{DNA, AA};
+	enum SCORING{SCORE_ONLY, ALNS_AND_SCORE};
 }
 
 	struct aln_results{
 		short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
 		int size;
-		void free_results();
+		void free_results(options::SCORING kernel_selection);
 	};
 
 	struct gap_scores{
@@ -67,6 +68,7 @@ namespace options
 			options::ALG_TYPE algorithm;
 			options::SEQ_TYPE sequence;
 			options::CIGAR cigar_avail;
+			options::SCORING kernel_sel;
 			adept_stream *curr_stream = nullptr;
 
 			unsigned max_ref_size, max_que_size;
@@ -92,7 +94,7 @@ namespace options
 		public:
 			// default constructor
 			driver() = default;
-			void initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id = 0);// each adept_dna object will have a unique cuda stream
+			void initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, options::SCORING _kernel_sel, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id = 0);// each adept_dna object will have a unique cuda stream
 
 			void kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
 			void mem_cpy_dth(int offset=0);
@@ -105,8 +107,8 @@ namespace options
 			void set_gap_scores(short _gap_open, short _gap_extend);
 	};
 
-	aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, int batch_size, int dev_id, std::vector<short> &scores, gap_scores gaps);
+	aln_results thread_launch(std::vector<std::string> &ref_vec, std::vector<std::string> &que_vec, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, ADEPT::options::SCORING kernel_sel_, int max_ref_size, int max_que_size, int batch_size, int dev_id, std::vector<short> &scores, gap_scores gaps);
 
-	all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, int max_ref_size, int max_que_size, std::vector<short> &scores, gap_scores gaps, int batch_size_ = -1);
+	all_alns multi_gpu(std::vector<std::string> &ref_sequences, std::vector<std::string> &que_sequences, ADEPT::options::ALG_TYPE algorithm, ADEPT::options::SEQ_TYPE sequence, ADEPT::options::CIGAR cigar_avail, ADEPT::options::SCORING kernel_sel_, int max_ref_size, int max_que_size, std::vector<short> &scores, gap_scores gaps, int batch_size_ = -1);
 	size_t get_batch_size(int gpu_id, int max_q_size, int max_r_size, int per_gpu_mem = 100);
 }

@@ -105,7 +105,8 @@ int main(int argc, char* argv[]){
   ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
   int total_alignments = ref_sequences.size();
-  sw_driver.initialize(scores, gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
+  auto kernel_sel = ADEPT::options::SCORING::ALNS_AND_SCORE;
+  sw_driver.initialize(scores, gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, kernel_sel, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
 
   std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
@@ -130,7 +131,7 @@ int main(int argc, char* argv[]){
   }
 
 
-  results.free_results();
+  results.free_results(kernel_sel);
 	sw_driver.cleanup();
   results_file.flush();
   results_file.close();

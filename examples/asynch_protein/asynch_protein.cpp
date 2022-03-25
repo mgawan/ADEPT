@@ -129,7 +129,7 @@ int main(int argc, char* argv[]){
   ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
   int total_alignments = ref_sequences.size();
 
-  sw_driver.initialize(scores_matrix, gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
+  sw_driver.initialize(scores_matrix, gaps, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::AA, ADEPT::options::CIGAR::YES,  ADEPT::options::SCORING::ALNS_AND_SCORE, MAX_REF_LEN, MAX_QUERY_LEN, total_alignments, batch_size, GPU_ID);
 
   std::cout << "STATUS: Launching driver" << std::endl << std::endl;
 
@@ -159,7 +159,7 @@ int main(int argc, char* argv[]){
 
   std::cout <<" total CPU work (counts) done while GPU was busy:"<< work_cpu << "\n";
 
-  results.free_results();
+  results.free_results(ADEPT::options::SCORING::ALNS_AND_SCORE);
 	sw_driver.cleanup();
   results_file.flush();
   results_file.close();

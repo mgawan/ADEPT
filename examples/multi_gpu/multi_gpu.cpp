@@ -114,7 +114,7 @@ int main(int argc, char* argv[]){
 
     ADEPT::gap_scores gaps(GAP_OPEN, GAP_EXTEND);
 
-    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, MAX_REF_LEN, MAX_QUERY_LEN, scores, gaps, batch_size);
+    auto all_results = ADEPT::multi_gpu(ref_sequences, que_sequences, ADEPT::options::ALG_TYPE::SW, ADEPT::options::SEQ_TYPE::DNA, ADEPT::options::CIGAR::YES, ADEPT::options::SCORING::ALNS_AND_SCORE, MAX_REF_LEN, MAX_QUERY_LEN, scores, gaps, batch_size);
 
     ofstream results_file(out_file);
     int tot_gpus = all_results.gpus;
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]){
     }
 
     for(int i = 0; i < tot_gpus; i++)
-        all_results.results[i].free_results();
+        all_results.results[i].free_results(ADEPT::options::SCORING::ALNS_AND_SCORE);
 
     // flush everything to stdout
     std::cout << "STATUS: Done" << std::endl << std::endl << std::flush;
