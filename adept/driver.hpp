@@ -14,7 +14,8 @@ namespace options
 }
 
 	struct aln_results{
-		short *ref_begin, *ref_end, *query_begin, *query_end, *top_scores;
+		unsigned short *ref_begin, *ref_end, *query_begin, *query_end;
+		short *top_scores;
 		int size;
 		void free_results(options::SCORING kernel_selection);
 	};
@@ -76,7 +77,8 @@ namespace options
 			unsigned total_alignments, batch_size;
 			unsigned *offset_ref, *offset_que;
 			unsigned total_length_ref, total_length_que;
-			short *ref_start_gpu, *ref_end_gpu, *query_start_gpu, *query_end_gpu, *scores_gpu;
+			unsigned short *ref_start_gpu, *ref_end_gpu, *query_start_gpu, *query_end_gpu;
+			short *scores_gpu;
 			unsigned* offset_ref_gpu, *offset_query_gpu;
 			char *ref_cstr_d, *que_cstr_d;
 			aln_results results;
@@ -87,9 +89,9 @@ namespace options
 			void dealloc_gpu_mem();
 			void initialize_alignments();
 			void mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, unsigned* offsetA_h, unsigned* offsetB_h, char* strA, char* strA_d, char* strB, char* strB_d, unsigned totalLengthA, unsigned totalLengthB);
-			void mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu , short* top_scores_cpu, int res_offset = 0);
-			void mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset = 0);
-			int get_new_min_length(short* alAend, short* alBend, int blocksLaunched);
+			void mem_copies_dth(unsigned short* ref_start_gpu, unsigned short* alAbeg,  unsigned short* query_start_gpu, unsigned short* alBbeg, short* scores_gpu , short* top_scores_cpu, int res_offset = 0);
+			void mem_copies_dth_mid(unsigned short* ref_end_gpu, unsigned short* alAend, unsigned short* query_end_gpu, unsigned short* alBend, int res_offset = 0);
+			int get_new_min_length(unsigned short* alAend, unsigned short* alBend, int blocksLaunched);
 
 		public:
 			// default constructor

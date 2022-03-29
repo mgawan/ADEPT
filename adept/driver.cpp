@@ -162,7 +162,7 @@ void driver::kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::
 	}
 }
 
-int driver::get_new_min_length(short* alAend, short* alBend, int blocksLaunched){
+int driver::get_new_min_length(unsigned short* alAend, unsigned short* alBend, int blocksLaunched){
         int newMin = 1000;
         int maxA = 0;
         int maxB = 0;
@@ -190,7 +190,7 @@ void driver::mem_cpy_htd(unsigned* offset_ref_gpu, unsigned* offset_query_gpu, u
 	}
 }
 
-void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_start_gpu,short* alBbeg, short* scores_gpu ,short* top_scores_cpu, int res_offset){
+void driver::mem_copies_dth(unsigned short* ref_start_gpu, unsigned short* alAbeg, unsigned short* query_start_gpu, unsigned short* alBbeg, short* scores_gpu ,short* top_scores_cpu, int res_offset){
 	if(kernel_sel == ADEPT::options::SCORING::ALNS_AND_SCORE){
     	cudaErrchk(cudaMemcpyAsync(alAbeg + res_offset, ref_start_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
 		cudaErrchk(cudaMemcpyAsync(alBbeg + res_offset, query_start_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
@@ -199,7 +199,7 @@ void driver::mem_copies_dth(short* ref_start_gpu, short* alAbeg, short* query_st
 	cudaErrchk(cudaEventRecord(curr_stream->data_event, curr_stream->stream));
 }
 
-void driver::mem_copies_dth_mid(short* ref_end_gpu, short* alAend, short* query_end_gpu, short* alBend, int res_offset){
+void driver::mem_copies_dth_mid(unsigned short* ref_end_gpu, unsigned short* alAend, unsigned short* query_end_gpu, unsigned short* alBend, int res_offset){
 	if(kernel_sel == ADEPT::options::SCORING::ALNS_AND_SCORE){
     	cudaErrchk(cudaMemcpyAsync(alAend + res_offset, ref_end_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));
     	cudaErrchk(cudaMemcpyAsync(alBend + res_offset, query_end_gpu, batch_size * sizeof(short), cudaMemcpyDeviceToHost, curr_stream->stream));

@@ -106,8 +106,8 @@ __device__ __host__ short
 
 __global__ void
 kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
-                    unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end,
-                    short* seqB_align_begin, short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap, bool reverse)
+                    unsigned* prefix_lengthB, unsigned short* seqA_align_begin, unsigned short* seqA_align_end,
+                    unsigned short* seqB_align_begin, unsigned short* seqB_align_end, short* top_scores, short matchScore, short misMatchScore, short startGap, short extendGap, bool reverse)
 {
   int block_Id  = blockIdx.x;
   int thread_Id = threadIdx.x;
@@ -312,7 +312,7 @@ kernel::dna_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,
 }
 
 __global__ void
-kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,unsigned* prefix_lengthB, short* seqA_align_begin, short* seqA_align_end, short* seqB_align_begin, short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse)
+kernel::aa_kernel(char* seqA_array, char* seqB_array, unsigned* prefix_lengthA,unsigned* prefix_lengthB, unsigned short* seqA_align_begin, unsigned short* seqA_align_end, unsigned short* seqB_align_begin, unsigned short* seqB_align_end, short* top_scores, short startGap, short extendGap, short* scoring_matrix, short* encoding_matrix, bool reverse)
 {
   int block_Id  = blockIdx.x;
   int thread_Id = threadIdx.x;
