@@ -7,7 +7,7 @@ To build and run tests make sure that rocm is available on your system and env v
 ```bash
 mkdir build
 cd build
-cmake -DCMAKE_CXX_COMPILER=hipcc ../
+cmake ../
 make
 ```
 To run all the tests/examples:

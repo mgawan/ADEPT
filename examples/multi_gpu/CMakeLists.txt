@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(multi_gpu multi_gpu.cpp)
-target_link_libraries(multi_gpu adept_lib_shared hip::device)
+target_link_libraries(multi_gpu adept_lib_shared)

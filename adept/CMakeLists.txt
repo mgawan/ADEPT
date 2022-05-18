@@ -29,7 +29,9 @@ if(NOT MY_PLATFORM STREQUAL "amd")
     endif()
 endif()
 
-
+find_package(hip)
+enable_language(HIP)
+set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE HIP LINKER_LANGUAGE HIP)
 add_library(adept_obj OBJECT ${SOURCE_FILES})
 add_library(adept_lib_shared SHARED $<TARGET_OBJECTS:adept_obj>)
 
@@ -45,7 +47,7 @@ endif()
 
 
 get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
-target_link_libraries(adept_lib_shared hip::device)
+target_link_libraries(adept_lib_shared)
 install(TARGETS adept_lib_shared LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
