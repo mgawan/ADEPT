@@ -58,9 +58,9 @@ endif()
 
 # enable GPU specific DPC++ flags
 if (ADEPT_GPU STREQUAL "NVIDIA")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
+    # set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsycl -fgpu-inline-threshold=100000 -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-frontend -O3 -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda-sycldevice -Xsycl-target-backend --cuda-gpu-arch=sm_70 -Wno-unknown-cuda-version -DNVIDIA_GPU")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fgpu-inline-threshold=100000 -fsycl-targets=nvptx64-nvidia-cuda -Xsycl-target-frontend -O3 -Xsycl-target-backend --cuda-gpu-arch=sm_80 -Wno-unknown-cuda-version -DNVIDIA_GPU")
 
 elseif (ADEPT_GPU STREQUAL "INTEL")
     # add a flag
