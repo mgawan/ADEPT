@@ -31,9 +31,6 @@ make
 ```
 and follow the above steps to run the tests.
 
-## Usage
-ADEPT provides Smith Waterman sequence alignment support for Protein and DNA sequences. The library provides options of using multiple GPUs and asynchronous support for performing CPU work while GPUs are busy with ADEPT alignments. To understand different use cases please refer to the samples contained in Examples folder.
-
 ### Contact
 If you need help modifying the library to match your specific use-case or for other issues and bug reports please open an issue or reach out at mgawan@lbl.gov
 
