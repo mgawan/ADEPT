@@ -89,7 +89,7 @@ namespace ADEPT{
 
 		public:
 			driver() = default; //default constructor
-			void initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id = 0);// each adept_dna object will have a unique cuda stream
+			void initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, int _gpu_id = 0);// each adept_dna object will have a unique cuda stream
 			void kernel_launch(std::vector<std::string> &ref_seqs, std::vector<std::string> &query_seqs, int res_offset = 0);
 			void mem_cpy_dth(int offset=0);
 			aln_results get_alignments();

@@ -32,8 +32,8 @@
 #include <thread>
 #include <functional>
 
-constexpr int MAX_REF_LEN    =      1200;
-constexpr int MAX_QUERY_LEN  =       600;
+constexpr int MAX_REF_LEN    =      9400;
+constexpr int MAX_QUERY_LEN  =       1024;
 constexpr int GPU_ID         =         0;
 
 constexpr unsigned int DATA_SIZE = std::numeric_limits<unsigned int>::max();

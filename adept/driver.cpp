@@ -49,7 +49,7 @@ void ADEPT::aln_results::free_results(){
     errcheck(hipHostFree(query_end));
     errcheck(hipHostFree(top_scores));
 }
-void driver::initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _batch_size, int _tot_alns, int _gpu_id){
+void driver::initialize(std::vector<short> &scores, gap_scores g_scores, options::ALG_TYPE _algorithm, options::SEQ_TYPE _sequence, options::CIGAR _cigar_avail, int _max_ref_size, int _max_query_size, int _tot_alns, int _batch_size, int _gpu_id){
 	algorithm = _algorithm, sequence = _sequence, cigar_avail = _cigar_avail;
 	if(sequence == ADEPT::options::SEQ_TYPE::DNA){
 		match_score = scores[0], mismatch_score = scores[1];
@@ -341,8 +341,8 @@ aln_results ADEPT::thread_launch(std::vector<std::string> &ref_vec, std::vector<
 
 	for(int i = 0; i < iterations; i++){
 		// print progress every 5%
-		//if (i % iter_20 == 0 || i == iterations - 1)
-			//std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
+		// if (i % iter_20 == 0 || i == iterations - 1)
+		// 	std::cout << "GPU: " << dev_id << " progress = " << i + 1 << "/" << iterations << std::endl << std::flush;
 		
 		sw_driver_loc.kernel_launch(its_ref_vecs[i], its_que_vecs[i], i * batch_size);
 		sw_driver_loc.mem_cpy_dth(i * batch_size);
